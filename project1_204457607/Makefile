@@ -5,3 +5,6 @@ default: webserver
 
 webserver: webserver.c
 	$(CC) $(CFLAGS) $^ -o $@
+
+clean:
+	rm -f *.o webserver
