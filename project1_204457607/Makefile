@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -Wall -Wextra -march=native -mtune=native -std=c++11
+CFLAGS = -Wall -Wextra -march=native -mtune=native -std=c++0x
 
 default: webserver
 

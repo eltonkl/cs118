@@ -56,7 +56,7 @@ int main(int argc, char** argv)
     serv_addr.sin_addr.s_addr = INADDR_ANY;
     serv_addr.sin_port = htons(portno);
 
-    if (bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
+    if (::bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
         error("ERROR on binding");
 
     listen(sockfd, 5);
@@ -111,10 +111,10 @@ const unordered_map<string, string> MIMEs = // Mapping of file extensions to MIM
 void respondToClient(int sockfd)
 {
     int n;
-    char buffer[256] = {0}; // TODO: it is not responsible to assume that the maximum size of an HTTP request is 256 bytes
+    char buffer[512] = {0}; // TODO: it is not responsible to assume that the maximum size of an HTTP request is 512 bytes
     string request;
 
-    n = read(sockfd, buffer, 255);
+    n = read(sockfd, buffer, 511);
     if (n < 0)
         error("ERROR reading from socket");
     
@@ -188,8 +188,8 @@ void respondToClient(int sockfd)
         {
             string extension = uri.substr(pos);
             transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
-            decltype(MIMEs)::const_iterator it;
-            if ((it = MIMEs.find(extension)) != MIMEs.end())
+            auto it = MIMEs.find(extension);
+            if (it != MIMEs.end())
                 MIME = it->second;
             else
                 MIME = default_mime;
