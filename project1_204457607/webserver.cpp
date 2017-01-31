@@ -24,12 +24,14 @@ void sigchld_handler(int s)
     while (waitpid(-1, NULL, WNOHANG) > 0);
 }
 
+// Print error message and then exit
 void error(string msg)
 {
     perror(msg.c_str());
     exit(1);
 }
 
+// Main function for processing and responding to TCP requests
 void respondToClient(int sockfd);
 
 int main(int argc, char** argv)
@@ -75,10 +77,12 @@ int main(int argc, char** argv)
         if (newsockfd < 0)
             error("ERROR on accept");
 
+        // Fork to handle incoming requests
         pid = fork();
         if (pid < 0)
             error("ERROR on fork");
 
+        // Child process: close old socket, handle request, close new socket
         if (pid == 0)
         {
             close(sockfd);
@@ -86,17 +90,17 @@ int main(int argc, char** argv)
             close(newsockfd);
             exit(0);
         }
-        else
+        else // Parent closes new socket fd
             close(newsockfd);
     }
 
     return 0;
 }
 
-const string response_base = "HTTP/1.1 200 OK\r\nContent-Type: ";
-const string failure_msg = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
-const string default_mime = "application/octet-stream";
-const unordered_map<string, string> MIMEs =
+const string response_base = "HTTP/1.1 200 OK\r\nContent-Type: "; // If the request is well formed, this is the base of the response
+const string failure_msg = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n"; // If a file can't be found, this is the response
+const string default_mime = "application/octet-stream"; // Default MIME if a mapping does not exist
+const unordered_map<string, string> MIMEs = // Mapping of file extensions to MIME types
 {
     { ".html", "text/html" },
     { ".gif", "image/gif" },
@@ -124,6 +128,7 @@ void respondToClient(int sockfd)
     string uri;
     string version;
 
+    // Get method, URI, and version info
     end = request.find(' ', start);
     if (end == string::npos)
         return;
@@ -145,6 +150,7 @@ void respondToClient(int sockfd)
     // cout << "Version: " << version << endl;
 
     unordered_map<string, string> headers;
+    // Store headers into the map declared above
     while (true)
     {
         string key, value;
@@ -167,18 +173,18 @@ void respondToClient(int sockfd)
     
     ifstream ifs("." + uri);
     //cout << uri << endl;
-    if (ifs.fail())
+    if (ifs.fail()) // If the file couldn't be opened, use the failure response (404 Not Found)
     {
         response = failure_msg;
     }
-    else
+    else // Finish forming the HTTP response
     {
         stringstream buf;
         buf << ifs.rdbuf();
 
         string MIME;
         size_t pos = uri.rfind('.');
-        if (pos != string::npos)
+        if (pos != string::npos) // Retrieve mapping
         {
             string extension = uri.substr(pos);
             transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
@@ -188,7 +194,7 @@ void respondToClient(int sockfd)
             else
                 MIME = default_mime;
         }
-        else
+        else // Use default mapping
             MIME = default_mime;
 
         string content = buf.str();
