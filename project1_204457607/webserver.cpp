@@ -185,6 +185,8 @@ void respondToClient(int sockfd)
             decltype(MIMEs)::const_iterator it;
             if ((it = MIMEs.find(extension)) != MIMEs.end())
                 MIME = it->second;
+            else
+                MIME = default_mime;
         }
         else
             MIME = default_mime;
