@@ -10,6 +10,11 @@
 #include <signal.h>
 #include <string>
 #include <unistd.h>
+#include <unordered_map>
+#include <iostream>
+#include <fstream>
+#include <sstream>
+#include <algorithm>
 
 using namespace std;
 
@@ -88,20 +93,106 @@ int main(int argc, char** argv)
     return 0;
 }
 
+const string response_base = "HTTP/1.1 200 OK\r\nContent-Type: ";
+const string failure_msg = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n";
+const string default_mime = "application/octet-stream";
+const unordered_map<string, string> MIMEs =
+{
+    { ".html", "text/html" },
+    { ".gif", "image/gif" },
+    { ".jpg", "image/jpeg" },
+    { ".jpeg", "image/jpeg" }
+};
+
 void respondToClient(int sockfd)
 {
     int n;
-    char buffer[256] = {0};
-    string response;
+    char buffer[256] = {0}; // TODO: it is not responsible to assume that the maximum size of an HTTP request is 256 bytes
+    string request;
 
     n = read(sockfd, buffer, 255);
     if (n < 0)
         error("ERROR reading from socket");
     
-    response.append(buffer, n);
-    printf("%s\n", response.c_str());
+    request.append(buffer, n);
+    printf("%s\n", request.c_str());
+
+    size_t start = 0;
+    size_t end = 0;
+
+    string method;
+    string uri;
+    string version;
+
+    end = request.find(' ', start);
+    if (end == string::npos)
+        return;
+    method = request.substr(start, end - start);
+    start = end + 1;
+    end = request.find(' ', start);
+    if (end == string::npos)
+        return;
+    uri = request.substr(start, end - start);
+    start = end + 1;
+    end = request.find("\r\n", start);
+    if (end == string::npos)
+        return;
+    version = request.substr(start, end - start);
+    start = end + 2;
+
+    // cout << "Method: " << method << endl;
+    // cout << "URI: " << uri << endl;
+    // cout << "Version: " << version << endl;
+
+    unordered_map<string, string> headers;
+    while (true)
+    {
+        string key, value;
+
+        end = request.find(": ", start);
+        if (end == string::npos)
+            break;
+        key = request.substr(start, end - start);
+        start = end + 2;
+        end = request.find("\r\n", start);
+        if (end == string::npos)
+            break;
+        value = request.substr(start, end - start);
+        start = end + 2;
+
+        // cout << "Key: " << key << " Value: " << value << endl;
+    }
+
+    string response;
     
-    n = write(sockfd, "I got your message", 18);
+    ifstream ifs("." + uri);
+    //cout << uri << endl;
+    if (ifs.fail())
+    {
+        response = failure_msg;
+    }
+    else
+    {
+        stringstream buf;
+        buf << ifs.rdbuf();
+
+        string MIME;
+        size_t pos = uri.rfind('.');
+        if (pos != string::npos)
+        {
+            string extension = uri.substr(pos);
+            transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
+            decltype(MIMEs)::const_iterator it;
+            if ((it = MIMEs.find(extension)) != MIMEs.end())
+                MIME = it->second;
+        }
+        else
+            MIME = default_mime;
+
+        string content = buf.str();
+        response = response_base + MIME + "\r\nContent-Length: " + to_string(content.length()) + "\r\n\r\n" + content;
+    }
+    n = write(sockfd, response.data(), response.length());
     if (n < 0)
         error ("ERROR writing to socket");
 }
