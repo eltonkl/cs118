@@ -103,7 +103,7 @@ int main(int argc, char** argv)
 }
 
 const string response_base = "HTTP/1.1 200 OK\r\nContent-Type: "; // If the request is well formed, this is the base of the response
-const string failure_msg = "HTTP/1.1 404 Not Found\r\nContent-Length: 0\r\n\r\n"; // If a file can't be found, this is the response
+const string failure_msg = "HTTP/1.1 404 Not Found\r\nContent-Length: 23\r\n\r\n<h1>Page Not Found</h1>"; // If a file can't be found, this is the response
 const string default_mime = "application/octet-stream"; // Default MIME if a mapping does not exist
 const unordered_map<string, string> MIMEs = // Mapping of file extensions to MIME types
 {
