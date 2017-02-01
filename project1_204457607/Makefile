@@ -7,4 +7,7 @@ webserver: webserver.cpp
 	$(CC) $(CFLAGS) $^ -o $@
 
 clean:
-	rm -f *.o webserver
+	rm -f *.o webserver project1_204457607.zip
+
+dist:
+	cd .. && zip project1_204457607/project1_204457607.zip project1_204457607/README project1_204457607/Makefile project1_204457607/webserver.cpp project1_204457607/report.pdf
