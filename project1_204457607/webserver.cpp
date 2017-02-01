@@ -124,7 +124,7 @@ void respondToClient(int sockfd)
         error("ERROR reading from socket");
     
     request.append(buffer, n);
-    printf("%s\n", request.c_str());
+    printf("%s", request.c_str());
 
     size_t start = 0;
     size_t end = 0;
