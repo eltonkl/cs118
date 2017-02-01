@@ -1,20 +1,24 @@
-/* Based on ClientServer_Example code */
+// Based on ClientServer_Example code
+// Simple server using TCP
+// Port number is the first command line argument
+// The server runs forever, using fork to handle
+// each incoming connection in a child process
 
 #include <stdio.h>
-#include <sys/types.h>
-#include <sys/socket.h>
-#include <netinet/in.h>
+#include <sys/types.h> // Data types used in socket.h and netinet/in.h
+#include <sys/socket.h> // Struct definitions for sockets
+#include <netinet/in.h> // Constants and structs for IP addresses
 #include <stdlib.h>
 #include <strings.h>
-#include <sys/wait.h>
-#include <signal.h>
+#include <sys/wait.h> // waitpid()
+#include <signal.h> // Signal name macros and kill()
 #include <string>
 #include <unistd.h>
 #include <unordered_map>
-#include <iostream>
-#include <fstream>
-#include <sstream>
-#include <algorithm>
+#include <iostream> // cout (for debugging)
+#include <fstream> // ifstream
+#include <sstream> // stringstream
+#include <algorithm> // transform
 
 using namespace std;
 
@@ -32,6 +36,7 @@ void error(string msg)
 }
 
 // Main function for processing and responding to TCP requests
+// Each child process calls this function once to process the request it's handling
 void respondToClient(int sockfd);
 
 int main(int argc, char** argv)
