@@ -103,7 +103,7 @@ int main(int argc, char** argv)
     return 0;
 }
 
-const string response_base = "HTTP/1.1 200 OK\r\nConnection: close\r\nServer: webserver/0.0.1\r\nContent-Type: "; // If the request is well formed, this is the base of the response
+const string response_base = "HTTP/1.1 200 OK\r\nConnection: close\r\nServer: webserver/0.0.1\r\n"; // If the request is well formed, this is the base of the response
 const string failure_msg = "HTTP/1.1 404 Not Found\r\nConnection: close\r\nServer: webserver/0.0.1\r\nContent-Type: text/html\r\n";
 const string failure_page = "<h1>404 Page Not Found</h1>"; // If a file can't be found, this is the response
 const string default_mime = "application/octet-stream"; // Default MIME if a mapping does not exist
@@ -195,10 +195,11 @@ void respondToClient(int sockfd)
     {
         stringstream buf;
         buf << ifs.rdbuf();
+        content = buf.str();
 
         string MIME;
         size_t pos = uri.rfind('.');
-        if (pos != string::npos) // Retrieve mapping
+        if (pos != string::npos) // Retrieve mapping and add Content-Type header
         {
             string extension = uri.substr(pos);
             transform(extension.begin(), extension.end(), extension.begin(), ::tolower);
@@ -210,9 +211,7 @@ void respondToClient(int sockfd)
         }
         else // Use default mapping
             MIME = default_mime;
-
-        content = buf.str();
-        response = response_base + MIME + "\r\n";
+        response = response_base + "Content-Type: " + MIME + "\r\n";
 
         // Last-Modified header
         if (res == 0)
