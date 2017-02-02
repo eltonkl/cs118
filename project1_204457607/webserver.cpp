@@ -19,6 +19,7 @@
 #include <fstream> // ifstream
 #include <sstream> // stringstream
 #include <algorithm> // transform
+#include <sys/stat.h> // stat for file time modification info
 
 using namespace std;
 
@@ -102,9 +103,11 @@ int main(int argc, char** argv)
     return 0;
 }
 
-const string response_base = "HTTP/1.1 200 OK\r\nContent-Type: "; // If the request is well formed, this is the base of the response
-const string failure_msg = "HTTP/1.1 404 Not Found\r\nContent-Length: 23\r\n\r\n<h1>Page Not Found</h1>"; // If a file can't be found, this is the response
+const string response_base = "HTTP/1.1 200 OK\r\nConnection: close\r\nServer: webserver/0.0.1\r\nContent-Type: "; // If the request is well formed, this is the base of the response
+const string failure_msg = "HTTP/1.1 404 Not Found\r\nConnection: close\r\nContent-Type: text/html\r\n";
+const string failure_page = "<h1>404 Page Not Found</h1>"; // If a file can't be found, this is the response
 const string default_mime = "application/octet-stream"; // Default MIME if a mapping does not exist
+const string date_format = "%a, %d %b %Y %T GMT";
 const unordered_map<string, string> MIMEs = // Mapping of file extensions to MIME types
 {
     { ".html", "text/html" },
@@ -175,12 +178,18 @@ void respondToClient(int sockfd)
     }
 
     string response;
-    
-    ifstream ifs("." + uri);
+    string content;
+    string path = "." + uri;
+    struct tm* timeinfo;
+
+    struct stat attr;
+    int res = stat(path.c_str(), &attr);
+    ifstream ifs(path);
     //cout << uri << endl;
-    if (ifs.fail()) // If the file couldn't be opened, use the failure response (404 Not Found)
+    if (ifs.fail() || (res == 0 && S_ISDIR(attr.st_mode))) // If the file couldn't be opened or is a directory, use the failure response (404 Not Found)
     {
         response = failure_msg;
+        content = failure_page;
     }
     else // Finish forming the HTTP response
     {
@@ -202,10 +211,30 @@ void respondToClient(int sockfd)
         else // Use default mapping
             MIME = default_mime;
 
-        string content = buf.str();
-        response = response_base + MIME + "\r\nContent-Length: " + to_string(content.length()) + "\r\n\r\n" + content;
+        content = buf.str();
+        response = response_base + MIME + "\r\n";
+
+        // Last-Modified header
+        if (res == 0)
+        {
+            timeinfo = gmtime(&attr.st_mtime);
+            if (strftime(buffer, 512, date_format.c_str(), timeinfo) != 0)
+                response += "Last-Modified: " + string(buffer) + "\r\n";
+        }
     }
-    n = write(sockfd, response.data(), response.length());
+
+    // Date header
+    time_t curtime;
+    time(&curtime);
+    timeinfo = gmtime(&curtime);
+    if (strftime(buffer, 512, date_format.c_str(), timeinfo) != 0)
+        response += "Date: " + string(buffer) + "\r\n";
+
+    // Add content
+    response += "Content-Length: " + to_string(content.length()) + "\r\n\r\n" + content;
+
+    // Send response
+    n = write(sockfd, response.c_str(), response.length());
     if (n < 0)
         error ("ERROR writing to socket");
 }
