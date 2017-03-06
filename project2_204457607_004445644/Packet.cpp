@@ -3,35 +3,35 @@
 
 namespace RDTP
 {
-    Packet::Packet(unsigned char* data, size_t len) : m_data(data, data + len)
+    Packet::Packet(unsigned char* data, size_t len) : _data(data, data + len)
     {
         ParseData();
     }
 
     Packet::Packet(PacketType type, int seq, int wnd, bool retransmission) :
-        m_packetType(type), m_seq(seq), m_wnd(wnd), m_retransmission(retransmission)
+        _packetType(type), _seq(seq), _wnd(wnd), _retransmission(retransmission)
     {
         GenerateData();
     }
 
     PacketType Packet::GetPacketType() const
     {
-        return m_packetType;
+        return _packetType;
     }
 
     int Packet::GetSequenceNumber() const
     {
-        return m_seq;
+        return _seq;
     }
 
     int Packet::GetWindowSize() const
     {
-        return m_wnd;
+        return _wnd;
     }
 
     bool Packet::GetIsRetransmission() const
     {
-        return m_retransmission;
+        return _retransmission;
     }
 
     void Packet::ParseData()

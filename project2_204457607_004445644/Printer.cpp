@@ -8,11 +8,11 @@ using namespace std;
 
 namespace RDTP
 {
-    Printer::Printer(ostream& os) : m_os(os) {}
+    Printer::Printer(ostream& os) : _os(os) {}
 
     void Printer::Print(const Packet& packet)
     {
         PacketType pt = packet.GetPacketType();
-        (void) pt;
+        (void)pt;
     }
 }

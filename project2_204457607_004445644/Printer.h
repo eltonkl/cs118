@@ -12,6 +12,6 @@ namespace RDTP
         void Print(const Packet& packet);
 
     private:
-        std::ostream& m_os;
+        std::ostream& _os;
     };
 }

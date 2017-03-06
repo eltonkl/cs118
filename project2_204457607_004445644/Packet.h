@@ -27,10 +27,10 @@ namespace RDTP
         void ParseData();
         void GenerateData();
 
-        std::vector<unsigned char> m_data;
-        PacketType m_packetType;
-        int m_seq;
-        int m_wnd;
-        int m_retransmission;
+        std::vector<unsigned char> _data;
+        PacketType _packetType;
+        int _seq;
+        int _wnd;
+        int _retransmission;
     };
 }
