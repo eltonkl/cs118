@@ -1,5 +1,5 @@
 CC = g++
-CFLAGS = -Wall -Wextra -march=native -mtune=native -std=c++0x
+CFLAGS = -Wall -Wextra -march=native -mtune=native -g -std=c++0x
 
 default: client server
 

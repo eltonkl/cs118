@@ -7,6 +7,7 @@
 #include <stdlib.h>
 #include <string.h>
 #include <iostream>
+#include <cassert>
 
 #include "RDTP.h"
 #include "Printer.h"
@@ -29,8 +30,26 @@ void error(string msg)
 
 void respondToClient(int sockfd, struct sockaddr_in* cli_addr, socklen_t cli_len, const Packet& packet);
 
+void test()
+{
+    vector<unsigned char> data = { 'l', 'e', 'l' };
+    Packet packet(PacketType::SYN, 5, 23, 93, data.data(), data.size());
+    vector<unsigned char> rawData = packet.GetRawData();
+    Packet packet2 = Packet::FromRawData(rawData.data(), rawData.size());
+    assert(packet.GetPacketType() == packet2.GetPacketType());
+    assert(packet.GetSequenceNumber() == packet2.GetSequenceNumber());
+    assert(packet.GetAcknowledgeNumber() == packet2.GetAcknowledgeNumber());
+    assert(packet.GetWindowSize() == packet2.GetWindowSize());
+    assert(packet.GetData() == packet2.GetData());
+
+    Printer printer(cout);
+    printer.PrintInformation(ApplicationType::Server, packet, false);
+    printer.PrintInformation(ApplicationType::Client, packet, false);
+}
+
 int main(int argc, char** argv)
 {
+    (void) test;
     int sockfd, portno, pid;
     socklen_t cli_len;
     struct sockaddr_in serv_addr, cli_addr;
@@ -79,9 +98,9 @@ int main(int argc, char** argv)
         {
             if (len > 0)
             {
-                Packet packet(buf, len);
+                Packet packet = Packet::FromRawData(buf, len);
                 Printer printer(cout);
-                printer.Print(packet);
+                printer.PrintInformation(ApplicationType::Server, packet, false);
                 respondToClient(sockfd, &cli_addr, cli_len, packet);
                 close(sockfd);
                 exit(0);
