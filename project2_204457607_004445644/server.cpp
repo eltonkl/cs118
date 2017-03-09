@@ -11,7 +11,6 @@
 #include "RDTP.h"
 
 using namespace std;
-using namespace std::chrono;
 using namespace RDTP;
 
 // Print error message and then exit
@@ -43,7 +42,7 @@ void test()
 
 int main(int argc, char** argv)
 {
-    (void) test;
+    (void)test;
     int sockfd, portno;
     struct sockaddr_in serv_addr, cli_addr;
     unsigned char buf[Constants::MaxPacketSize];

@@ -1,6 +1,7 @@
 #pragma once
 
 #include <vector>
+#include <stdint.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
 
@@ -12,15 +13,15 @@ namespace RDTP
     struct Constants
     {
         // Bytes
-        const static int MaxPacketSize = 1024;
-        const static int MaxSequenceNumber = 30720;
-        const static int WindowSize = 5120;
-        const static int HeaderSize = 8;
+		const static size_t MaxPacketSize; // = 1024;
+		const static size_t MaxSequenceNumber; // = 30720;
+		const static size_t WindowSize; // = 5120;
+		const static size_t HeaderSize; // = 8;
         // Milliseconds
-        const static int RetransmissionTimeoutValue = 500;
+		const static size_t RetransmissionTimeoutValue; // = 500;
 
-        const static int InitialSlowStartThreshold = 15360;
-        const static int InitialCongestionWindowSize = 1024;
+		const static size_t InitialSlowStartThreshold; // = 15360;
+		const static size_t InitialCongestionWindowSize; // = 1024;
     };
 
     // We assume that things can never fail because this is a perfect world :)

@@ -5,10 +5,10 @@ default: client server
 
 # forgive me, for I have sinned and don't feel like having a separate object file creation step and cannot reap the benefits of not having to recompile every cpp file every time i type make
 
-client: client.cpp Printer.cpp Packet.cpp
+client: client.cpp RDTP.cpp Printer.cpp Packet.cpp
 	$(CC) $(CFLAGS) $^ -o $@
 
-server: server.cpp Printer.cpp Packet.cpp
+server: server.cpp RDTP.cpp Printer.cpp Packet.cpp
 	$(CC) $(CFLAGS) $^ -o $@
 
 clean:
