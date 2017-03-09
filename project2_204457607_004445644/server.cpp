@@ -2,7 +2,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/wait.h>
-#include <signal.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -10,16 +9,10 @@
 #include <cassert>
 
 #include "RDTP.h"
-#include "Printer.h"
 
 using namespace std;
+using namespace std::chrono;
 using namespace RDTP;
-
-void sigchld_handler(int s)
-{
-    (void)s;
-    while (waitpid(-1, NULL, WNOHANG) > 0);
-}
 
 // Print error message and then exit
 void error(string msg)
@@ -28,10 +21,11 @@ void error(string msg)
     exit(1);
 }
 
-void respondToClient(int sockfd, struct sockaddr_in* cli_addr, socklen_t cli_len, const Packet& packet);
+//void respondToClient(int sockfd, struct sockaddr_in* cli_addr, socklen_t cli_len, const Packet& packet);
 
 void test()
 {
+    using namespace RDTP::_Internals;
     vector<unsigned char> data = { 'l', 'e', 'l' };
     Packet packet(PacketType::SYN, 5, 23, 93, data.data(), data.size());
     vector<unsigned char> rawData = packet.GetRawData();
@@ -50,10 +44,8 @@ void test()
 int main(int argc, char** argv)
 {
     (void) test;
-    int sockfd, portno, pid;
-    socklen_t cli_len;
+    int sockfd, portno;
     struct sockaddr_in serv_addr, cli_addr;
-    struct sigaction sa;
     unsigned char buf[Constants::MaxPacketSize];
     int len;
 
@@ -75,47 +67,38 @@ int main(int argc, char** argv)
     if (::bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
         error("ERROR on binding");
 
-    cli_len = sizeof(cli_addr);
+    bool servingFile = false;
 
-    // Kill zombie processes
-    sa.sa_handler = sigchld_handler;
-    sigemptyset(&sa.sa_mask);
-    sa.sa_flags = SA_RESTART;
-    if (sigaction(SIGCHLD, &sa, nullptr) == -1)
-        error("sigaction");
-
-    while (true)
+    
+    /*while (true)
     {
-        len = recvfrom(sockfd, buf, Constants::MaxPacketSize, 0, (struct sockaddr*)&cli_addr, &cli_len);
+        milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
 
-        // Fork to handle incoming requests
-        pid = fork();
-        if (pid < 0)
-            error("ERROR on fork");
-
-        // Child process: handle request, close socket
-        if (pid == 0)
+        if (!servingFile) // TCP-like 3-way handshake + receive the filename from the client
         {
+            
+        }
+        else
+        {
+            len = recvfrom(sockfd, buf, Constants::MaxPacketSize, 0, (struct sockaddr*)&cli_addr, &cli_len);
+        
             if (len > 0)
             {
                 Packet packet = Packet::FromRawData(buf, len);
-                Printer printer(cout);
                 printer.PrintInformation(ApplicationType::Server, packet, false);
                 respondToClient(sockfd, &cli_addr, cli_len, packet);
-                close(sockfd);
-                exit(0);
             }
         }
-    }
+    }*/
 
     return 0;
 }
 
-void respondToClient(int sockfd, struct sockaddr_in* cli_addr, socklen_t cli_len, const Packet& packet)
+/*void respondToClient(int sockfd, struct sockaddr_in* cli_addr, socklen_t cli_len, const Packet& packet)
 {
     (void)sockfd;
     (void)cli_addr;
     (void)cli_len;
     (void)packet;
     //sendto(sockfd, buf, buflen, (struct sockaddr *)cli_addr, cli_len);
-}
+}*/

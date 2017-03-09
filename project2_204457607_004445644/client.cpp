@@ -2,7 +2,6 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/wait.h>
-#include <signal.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
@@ -13,12 +12,6 @@
 
 using namespace std;
 using namespace RDTP;
-
-void sigchld_handler(int s)
-{
-    (void)s;
-    while (waitpid(-1, NULL, WNOHANG) > 0);
-}
 
 // Print error message and then exit
 void error(string msg)
