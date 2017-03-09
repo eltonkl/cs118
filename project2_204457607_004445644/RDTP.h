@@ -1,6 +1,9 @@
 #pragma once
 
 #include <vector>
+#include <istream>
+#include <ostream>
+#include <utility>
 #include <stdint.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
@@ -24,22 +27,31 @@ namespace RDTP
 		const static size_t InitialCongestionWindowSize; // = 1024;
     };
 
-    // We assume that things can never fail because this is a perfect world :)
-    class RDTPIOStream
+    enum class ApplicationType
+    {
+        Server,
+        Client
+    };
+
+    // Assume things don't fail
+    class RDTPConnection
     {
     public:
         // Three way handshake
-        RDTPIOStream(const int sockfd, const struct sockaddr_in& cli_addr);
-        
-        // Send data
-        RDTPIOStream& operator<<(const std::vector<unsigned char>& data);
-        // Receive data
-        RDTPIOStream& operator>>(std::vector<unsigned char>& data);
+        RDTPConnection(ApplicationType type, const int sockfd);
+        // Write data
+        template <typename Iterator>
+        void Write(Iterator begin, Iterator end);
+        RDTPConnection& operator<<(std::basic_istream<char>& is);
+        // Read data
+        void Read(std::basic_ostream<char>& os, size_t count);
 
     private:
         const int _sockfd;
-        const struct sockaddr_in _cli_addr;
-        const socklen_t _cli_len;
+        socklen_t _cli_len;
         _Internals::Printer _printer;
+        struct sockaddr_in _cli_addr;
     };
 }
+
+#include "RDTPConnection.tpp"

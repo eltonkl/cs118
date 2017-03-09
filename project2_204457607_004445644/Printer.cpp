@@ -5,6 +5,7 @@
 #include <string>
 
 using namespace std;
+using namespace RDTP;
 
 namespace RDTP
 {

@@ -2,16 +2,21 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <sys/wait.h>
+#include <sys/stat.h>
 #include <unistd.h>
 #include <stdlib.h>
 #include <string.h>
-#include <iostream>
+#include <fstream>
 #include <cassert>
+#include <sstream>
+#include <string>
 
 #include "RDTP.h"
+#include "BFTP.h"
 
 using namespace std;
 using namespace RDTP;
+using namespace BFTP;
 
 // Print error message and then exit
 void error(string msg)
@@ -20,14 +25,12 @@ void error(string msg)
     exit(1);
 }
 
-//void respondToClient(int sockfd, struct sockaddr_in* cli_addr, socklen_t cli_len, const Packet& packet);
-
 void test()
 {
     using namespace RDTP::_Internals;
-    vector<unsigned char> data = { 'l', 'e', 'l' };
+    vector<char> data = { 'l', 'e', 'l' };
     Packet packet(PacketType::SYN, 5, 23, 93, data.data(), data.size());
-    vector<unsigned char> rawData = packet.GetRawData();
+    vector<char> rawData = packet.GetRawData();
     Packet packet2 = Packet::FromRawData(rawData.data(), rawData.size());
     assert(packet.GetPacketType() == packet2.GetPacketType());
     assert(packet.GetSequenceNumber() == packet2.GetSequenceNumber());
@@ -42,11 +45,9 @@ void test()
 
 int main(int argc, char** argv)
 {
-    (void)test;
+    test();
     int sockfd, portno;
-    struct sockaddr_in serv_addr, cli_addr;
-    unsigned char buf[Constants::MaxPacketSize];
-    int len;
+    struct sockaddr_in serv_addr;
 
     if (argc < 2)
     {
@@ -66,38 +67,35 @@ int main(int argc, char** argv)
     if (::bind(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
         error("ERROR on binding");
 
-    bool servingFile = false;
-
-    
-    /*while (true)
+    while (true)
     {
-        milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
+        RDTPConnection rc(ApplicationType::Server, sockfd);
+        BFTPSession bs(rc);
 
-        if (!servingFile) // TCP-like 3-way handshake + receive the filename from the client
+        string filename = bs.ReceiveFilename();
+
+        cout << "Filename requested: " << filename;
+        
+        ifstream ifs(filename, ios::binary);
+        struct stat attr;
+        int res = stat(filename.c_str(), &attr);
+        
+        if (ifs.fail() || (res == 0 && S_ISDIR(attr.st_mode))) // If the file couldn't be opened or is a directory, use the failure response (404 Not Found)
         {
-            
+            bs.NotifyFileNotFound();
         }
         else
         {
-            len = recvfrom(sockfd, buf, Constants::MaxPacketSize, 0, (struct sockaddr*)&cli_addr, &cli_len);
-        
-            if (len > 0)
-            {
-                Packet packet = Packet::FromRawData(buf, len);
-                printer.PrintInformation(ApplicationType::Server, packet, false);
-                respondToClient(sockfd, &cli_addr, cli_len, packet);
-            }
-        }
-    }*/
+            std::streampos beg, end;
+            beg = ifs.tellg();
+            ifs.seekg(0, std::ios::end);
+            end = ifs.tellg();
+            ifs.seekg(0, std::ios::beg);
 
+            bs.SendFile(ifs, beg - end);
+        }
+    }
+
+    close(sockfd);
     return 0;
 }
-
-/*void respondToClient(int sockfd, struct sockaddr_in* cli_addr, socklen_t cli_len, const Packet& packet)
-{
-    (void)sockfd;
-    (void)cli_addr;
-    (void)cli_len;
-    (void)packet;
-    //sendto(sockfd, buf, buflen, (struct sockaddr *)cli_addr, cli_len);
-}*/

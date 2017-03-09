@@ -26,24 +26,24 @@ namespace RDTP
         class Packet
         {
         public:
-            static Packet FromRawData(unsigned char* rawData, size_t rawDataLength);
-            Packet(PacketType type, uint16_t seq, uint16_t ack, uint16_t wnd, unsigned char* data, size_t dataLength);
+            static Packet FromRawData(char* rawData, size_t rawDataLength);
+            Packet(PacketType type, uint16_t seq, uint16_t ack, uint16_t wnd, char* data, size_t dataLength);
 
             PacketType GetPacketType() const;
             uint16_t GetSequenceNumber() const;
             uint16_t GetAcknowledgeNumber() const;
             uint16_t GetWindowSize() const;
             bool GetValid() const;
-            std::vector<unsigned char> GetData() const;
-            std::vector<unsigned char> GetRawData() const;
+            std::vector<char> GetData() const;
+            std::vector<char> GetRawData() const;
 
         private:
-            Packet(unsigned char* data, size_t dataLength);
+            Packet(char* data, size_t dataLength);
 
             void ParseRawData();
             void GenerateHeader();
 
-            std::vector<unsigned char> _rawData;
+            std::vector<char> _rawData;
             PacketType _packetType;
             uint16_t _seq;
             uint16_t _ack;
