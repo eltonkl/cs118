@@ -2,6 +2,8 @@
 #include <istream>
 #include <ostream>
 #include <string>
+#include <sstream>
+#include <iomanip>
 
 #include "BFTP.h"
 #include "RDTP.h"
@@ -17,42 +19,58 @@ namespace BFTP
 
     std::string BFTPSession::ReceiveFilename()
     {
-        return string();
+        ostringstream oss;
+        _rc.Read(oss, 256);
+
+        return oss.str();
     }
 
+    // Maximum filename size is 255 characters
     void BFTPSession::SendFilename(const string& filename)
     {
-        // http://stackoverflow.com/a/3407254
-        size_t multiple = Constants::MaxPacketSize - Constants::HeaderSize;
-        size_t toRound = filename.length() + 1;
-        size_t remainder = toRound % multiple;
-        size_t rounded = remainder == 0 ? toRound : toRound + multiple - remainder;
-
         vector<char> formattedFilename;
-        formattedFilename.reserve(rounded);
+
+        formattedFilename.reserve(256);
         formattedFilename.insert(formattedFilename.begin(), filename.begin(), filename.end());
-        formattedFilename.resize(rounded, '\0');
+        formattedFilename.resize(256, '\0');
+        formattedFilename[255] = '\0';
+
         _rc.Write(formattedFilename.begin(), formattedFilename.end());
     }
 
     void BFTPSession::NotifyFileNotFound()
     {
-
+        string data = "0";
+        _rc.Write(data.begin(), data.end());
     }
 
     bool BFTPSession::WasFileFound()
     {
-        return false;
+        ostringstream oss;
+        _rc.Read(oss, 1);
+
+        if (oss.str() == "0")
+            return false;
+        else
+            return true;
     }
 
     void BFTPSession::SendFile(std::basic_istream<char>& is, size_t size)
     {
-        (void)is;
-        (void)size;
+        stringstream ss;
+        ss << setfill('0') << setw(20) << size;
+
+        _rc << ss;
+        _rc << is;
     }
 
     void BFTPSession::ReceiveFile(std::basic_ostream<char>& os)
     {
-        (void)os;
+        stringstream ss;
+        _rc.Read(ss, 20);
+
+        size_t size;
+        ss >> size;
+        _rc.Read(os, size);
     }
 }

@@ -10,6 +10,7 @@
 #include <cassert>
 #include <sstream>
 #include <string>
+#include <iomanip>
 
 #include "RDTP.h"
 #include "BFTP.h"
@@ -41,11 +42,21 @@ void test()
     Printer printer(cout);
     printer.PrintInformation(ApplicationType::Server, packet, false);
     printer.PrintInformation(ApplicationType::Client, packet, false);
+
+    size_t x = SIZE_MAX;
+    stringstream ss;
+    ss << setfill('0') << setw(20) << x;
+    string a = ss.str();
+    stringstream ss2;
+    x = 0;
+    ss2 << a;
+    ss2 >> x;
+    cout << x << endl;
 }
 
 int main(int argc, char** argv)
 {
-    test();
+    // test();
     int sockfd, portno;
     struct sockaddr_in serv_addr;
 
@@ -69,12 +80,12 @@ int main(int argc, char** argv)
 
     while (true)
     {
+        cout << "Initiating RDTP connection as server" << endl;
         RDTPConnection rc(ApplicationType::Server, sockfd);
         BFTPSession bs(rc);
 
         string filename = bs.ReceiveFilename();
-
-        cout << "Filename requested: " << filename;
+        cout << "Filename requested: " << filename << endl;
         
         ifstream ifs(filename, ios::binary);
         struct stat attr;
@@ -82,10 +93,12 @@ int main(int argc, char** argv)
         
         if (ifs.fail() || (res == 0 && S_ISDIR(attr.st_mode))) // If the file couldn't be opened or is a directory, use the failure response (404 Not Found)
         {
+            cout << "File not found." << endl;
             bs.NotifyFileNotFound();
         }
         else
         {
+            cout << "File found. Sending." << endl;
             std::streampos beg, end;
             beg = ifs.tellg();
             ifs.seekg(0, std::ios::end);
