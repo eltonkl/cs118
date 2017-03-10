@@ -46,6 +46,9 @@ void test()
     size_t x = SIZE_MAX;
     stringstream ss;
     ss << setfill('0') << setw(20) << x;
+    x = 0;
+    ss >> x;
+    cout << x << endl;
     string a = ss.str();
     stringstream ss2;
     x = 0;
