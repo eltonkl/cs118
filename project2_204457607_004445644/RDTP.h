@@ -64,6 +64,9 @@ namespace RDTP
         uint16_t _sendBase;
         bool _established;
 
+        template <typename Iterator>
+        std::vector<char> GetDataForNextPacket(Iterator& begin, const Iterator& end);
+
         void ReceiveHandshake();
         void InitiateHandshake();
 
