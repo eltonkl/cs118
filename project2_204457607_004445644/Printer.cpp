@@ -1,3 +1,5 @@
+#define DEBUG
+
 #include "RDTP.h"
 #include "Printer.h"
 
@@ -13,6 +15,38 @@ namespace RDTP
     {
         Printer::Printer(ostream& os) : _os(os) {}
 
+#ifdef DEBUG
+        void Printer::PrintInformation(ApplicationType type, const Packet& packet, bool retransmission, bool isReceive)
+        {
+            if (type == ApplicationType::Server)
+                _os << "[Server] ";
+            else 
+                _os << "[Client] ";
+
+            if (isReceive)
+                _os << "Receiving packet: ";
+            else
+                _os << "Sending packet: ";
+
+            PacketType pt = packet.GetPacketType();
+            _os << "Type: ";
+            switch (pt) {
+                case PacketType::SYN: _os << "SYN; "; break;
+                case PacketType::ACK: _os << "ACK; "; break;
+                case PacketType::FIN: _os << "FIN; "; break;
+                case PacketType::NONE: _os << "NONE; "; break;
+                case PacketType::SYNACK: _os << "SYNACK; "; break;
+            }
+
+            _os << "SEQ: " << packet.GetSequenceNumber() << "; ";
+            _os << "ACK: " << packet.GetAcknowledgeNumber() << "; ";
+            _os << "WND: " << packet.GetWindowSize() << "; ";
+
+            if (retransmission)
+                _os << " Retransmission";
+            _os << endl;
+        }
+#else
         void Printer::PrintInformation(ApplicationType type, const Packet& packet, bool retransmission, bool isReceive)
         {
             if (type == ApplicationType::Server)
@@ -20,6 +54,7 @@ namespace RDTP
             else
                 PrintInformationAsClient(packet, retransmission, isReceive);
         }
+#endif
 
         void Printer::PrintInformationAsServer(const Packet& packet, bool retransmission, bool isReceive)
         {
