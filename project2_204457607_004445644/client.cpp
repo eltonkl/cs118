@@ -56,26 +56,30 @@ int main(int argc, char** argv)
         error("ERROR using connect");
     }
 
-    cout << "Initiating RDTP connection as client" << endl;
-    RDTPConnection rc(ApplicationType::Client, sockfd);
-    if (!rc.IsConnectionEstablished())
-        goto failure;
-
     {
-        string filename(argv[3]);
-        cout << "Requesting file " << filename << endl;
-        BFTPSession bs(rc);
-        bs.SendFilename(filename);
+        cout << "Initiating RDTP connection as client" << endl;
+        RDTPConnection rc(ApplicationType::Client, sockfd);
+        if (!rc.IsConnectionEstablished())
+            goto failure;
 
-        if (bs.WasFileFound())
         {
-            cout << "File found. Writing to ./received.data" << endl;
-            ofstream ofs("./received.data", ios::binary | ios::trunc);
+            string filename(argv[3]);
+            cout << "Requesting file " << filename << endl;
+            BFTPSession bs(rc);
+            bs.SendFilename(filename);
 
-            bs.ReceiveFile(ofs);
+            if (bs.WasFileFound())
+            {
+                cout << "File found. Writing to ./received.data" << endl;
+                ofstream ofs("./received.data", ios::binary | ios::trunc);
+
+                bs.ReceiveFile(ofs);
+            }
+            else
+                cout << "File not found. Exiting." << endl;
         }
-        else
-            cout << "File not found. Exiting." << endl;
+        // Need destructor to fire before close(sockfd)
+        // Might as well be using rust with all this utilization of scoping rules
     }
 
 failure:

@@ -47,14 +47,22 @@ namespace RDTP
 
     // Three way handshake
     RDTPConnection::RDTPConnection(ApplicationType type, const int sockfd) :
-        _sockfd(sockfd), _cli_len(sizeof(_cli_addr)), _printer(cout)
+        _sockfd(sockfd), _cli_len(sizeof(_cli_addr)), _printer(cout), _type(type)
 	{
-		if (type == ApplicationType::Server)
+		if (_type == ApplicationType::Server)
 			ReceiveHandshake();
-		else //if (type == ApplicationType::Client)
+		else //if (_type == ApplicationType::Client)
 			InitiateHandshake();
 		_established = true;
     }
+
+	RDTPConnection::~RDTPConnection()
+	{
+		if (_type == ApplicationType::Server)
+			ReceiveFinish();
+		else //if (_type == ApplicationType::Client)
+			SendFinish();
+	}
 
 	bool RDTPConnection::IsConnectionEstablished() const
 	{
