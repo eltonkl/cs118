@@ -87,7 +87,7 @@ namespace RDTP
 		if (len > 0)
 		{
 			Packet packet = Packet::FromRawData(buf, len);
-			_printer.PrintInformation(ApplicationType::Server, packet, false);
+			_printer.PrintInformation(ApplicationType::Server, packet, false, true);
 		
 			if (packet.GetPacketType() == PacketType::SYN)
 				_sendBase = packet.GetSequenceNumber();
@@ -116,14 +116,14 @@ namespace RDTP
 			Packet packet = Packet(PacketType::SYNACK, _nextSeqNum, _sendBase, Constants::WindowSize, nullptr, 0);
 			bool retransmit = false;
 	
-			_printer.PrintInformation(ApplicationType::Server, packet, retransmit);
+			_printer.PrintInformation(ApplicationType::Server, packet, retransmit, false);
 			sendto(_sockfd, packet.GetRawData().data(), packet.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
 			
 			len = recvfrom(_sockfd, buf, Constants::MaxPacketSize, 0, (struct sockaddr*)&_cli_addr, &_cli_len);
 			if (len > 0)
 			{
 				Packet packet = Packet::FromRawData(buf, len);
-				_printer.PrintInformation(ApplicationType::Server, packet, false);
+				_printer.PrintInformation(ApplicationType::Server, packet, false, true);
 
 				if (packet.GetPacketType() != PacketType::ACK)
 				{
@@ -164,7 +164,7 @@ namespace RDTP
 		while (true)
 		{
 			// milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
-			_printer.PrintInformation(ApplicationType::Client, packet, retransmit);
+			_printer.PrintInformation(ApplicationType::Client, packet, retransmit, false);
 			write(_sockfd, packet.GetRawData().data(), packet.GetRawDataSize());
 			
 			// SYN_SENT
@@ -176,7 +176,7 @@ namespace RDTP
 			}
 
 			Packet packet = Packet::FromRawData(buf, len);
-			_printer.PrintInformation(ApplicationType::Client, packet, false);
+			_printer.PrintInformation(ApplicationType::Client, packet, false, true);
 
 			if (packet.GetPacketType() == PacketType::SYNACK)
 			{
@@ -196,7 +196,7 @@ namespace RDTP
 			_sendBase += 1;
 
 			Packet packet2 = Packet(PacketType::SYN, _nextSeqNum, _sendBase, Constants::WindowSize, nullptr, 0);
-			_printer.PrintInformation(ApplicationType::Client, packet2, retransmit);
+			_printer.PrintInformation(ApplicationType::Client, packet2, retransmit, false);
 			
 			write(_sockfd, packet2.GetRawData().data(), packet2.GetRawDataSize());
 			// Hope it sends: http://stackoverflow.com/questions/16259774/what-if-a-tcp-handshake-segment-is-lost

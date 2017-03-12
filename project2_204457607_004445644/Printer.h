@@ -16,13 +16,13 @@ namespace RDTP
         {
         public:
             Printer(std::ostream& os);
-            void PrintInformation(RDTP::ApplicationType type, const Packet& packet, bool retransmission);
+            void PrintInformation(RDTP::ApplicationType type, const Packet& packet, bool retransmission, bool isReceive);
 
         private:
             std::ostream& _os;
 
-            void PrintInformationAsServer(const Packet& packet, bool retransmission);
-            void PrintInformationAsClient(const Packet& packet, bool retransmission);
+            void PrintInformationAsServer(const Packet& packet, bool retransmission, bool isReceive);
+            void PrintInformationAsClient(const Packet& packet, bool retransmission, bool isReceive);
         };
     }
 }

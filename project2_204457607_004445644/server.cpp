@@ -27,50 +27,50 @@ void error(string msg)
     exit(1);
 }
 
-void test()
-{
-    using namespace RDTP::_Internals;
-    vector<char> data = { 'l', 'e', 'l' };
-    Packet packet(PacketType::SYN, 5, 23, 93, data.data(), data.size());
-    vector<char> rawData = packet.GetRawData();
-    Packet packet2 = Packet::FromRawData(rawData.data(), rawData.size());
-    assert(packet.GetPacketType() == packet2.GetPacketType());
-    assert(packet.GetSequenceNumber() == packet2.GetSequenceNumber());
-    assert(packet.GetAcknowledgeNumber() == packet2.GetAcknowledgeNumber());
-    assert(packet.GetWindowSize() == packet2.GetWindowSize());
-    assert(packet.GetData() == packet2.GetData());
+// void test()
+// {
+//     using namespace RDTP::_Internals;
+//     vector<char> data = { 'l', 'e', 'l' };
+//     Packet packet(PacketType::SYN, 5, 23, 93, data.data(), data.size());
+//     vector<char> rawData = packet.GetRawData();
+//     Packet packet2 = Packet::FromRawData(rawData.data(), rawData.size());
+//     assert(packet.GetPacketType() == packet2.GetPacketType());
+//     assert(packet.GetSequenceNumber() == packet2.GetSequenceNumber());
+//     assert(packet.GetAcknowledgeNumber() == packet2.GetAcknowledgeNumber());
+//     assert(packet.GetWindowSize() == packet2.GetWindowSize());
+//     assert(packet.GetData() == packet2.GetData());
 
-    Printer printer(cout);
-    printer.PrintInformation(ApplicationType::Server, packet, false);
-    printer.PrintInformation(ApplicationType::Client, packet, false);
+//     Printer printer(cout);
+//     printer.PrintInformation(ApplicationType::Server, packet, false);
+//     printer.PrintInformation(ApplicationType::Client, packet, false);
 
-    size_t x = SIZE_MAX;
-    stringstream ss;
-    ss << setfill('0') << setw(20) << x;
-    x = 0;
-    ss >> x;
-    cout << x << endl;
-    string a = ss.str();
-    stringstream ss2;
-    x = 0;
-    ss2 << '1' << a;
-    cout << string(istream_iterator<char>(ss2), istream_iterator<char>()) << endl;
-    ss2 = stringstream();
-    ss2 << a;
-    ss2 >> x;
-    cout << x << endl;
+//     size_t x = SIZE_MAX;
+//     stringstream ss;
+//     ss << setfill('0') << setw(20) << x;
+//     x = 0;
+//     ss >> x;
+//     cout << x << endl;
+//     string a = ss.str();
+//     stringstream ss2;
+//     x = 0;
+//     ss2 << '1' << a;
+//     cout << string(istream_iterator<char>(ss2), istream_iterator<char>()) << endl;
+//     ss2 = stringstream();
+//     ss2 << a;
+//     ss2 >> x;
+//     cout << x << endl;
 
-    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
-    struct timeval tv;
-    socklen_t tv_len;
-    cout << getsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, &tv_len) << endl;
-    close(sockfd);
-    assert(false);
-}
+//     int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+//     struct timeval tv;
+//     socklen_t tv_len;
+//     cout << getsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, &tv_len) << endl;
+//     close(sockfd);
+//     assert(false);
+// }
 
 int main(int argc, char** argv)
 {
-    test();
+    // test();
     int sockfd, portno;
     struct sockaddr_in serv_addr;
 

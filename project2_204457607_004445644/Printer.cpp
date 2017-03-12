@@ -13,19 +13,19 @@ namespace RDTP
     {
         Printer::Printer(ostream& os) : _os(os) {}
 
-        void Printer::PrintInformation(ApplicationType type, const Packet& packet, bool retransmission)
+        void Printer::PrintInformation(ApplicationType type, const Packet& packet, bool retransmission, bool isReceive)
         {
             if (type == ApplicationType::Server)
-                PrintInformationAsServer(packet, retransmission);
+                PrintInformationAsServer(packet, retransmission, isReceive);
             else
-                PrintInformationAsClient(packet, retransmission);
+                PrintInformationAsClient(packet, retransmission, isReceive);
         }
 
-        void Printer::PrintInformationAsServer(const Packet& packet, bool retransmission)
+        void Printer::PrintInformationAsServer(const Packet& packet, bool retransmission, bool isReceive)
         {
             PacketType pt = packet.GetPacketType();
 
-            if (pt == PacketType::ACK)
+            if (isReceive)
                 _os << "Receiving packet ";
             else
                 _os << "Sending packet ";
@@ -65,11 +65,11 @@ namespace RDTP
             }
         }
 
-        void Printer::PrintInformationAsClient(const Packet& packet, bool retransmission)
+        void Printer::PrintInformationAsClient(const Packet& packet, bool retransmission, bool isReceive)
         {
             PacketType pt = packet.GetPacketType();
 
-            if (pt == PacketType::NONE)
+            if (isReceive)
                 _os << "Receiving packet ";
             else
                 _os << "Sending packet ";
@@ -98,7 +98,7 @@ namespace RDTP
                 _os << packet.GetSequenceNumber() << endl;
                 break;
             case PacketType::SYNACK:
-                _os << packet.GetSequenceNumber();
+                _os << packet.GetSequenceNumber() << endl;
             }
         }
     }
