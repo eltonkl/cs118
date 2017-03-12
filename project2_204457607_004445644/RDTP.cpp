@@ -195,7 +195,7 @@ namespace RDTP
 		{
 			_sendBase += 1;
 
-			Packet packet2 = Packet(PacketType::SYN, _nextSeqNum, _sendBase, Constants::WindowSize, nullptr, 0);
+			Packet packet2 = Packet(PacketType::ACK, _nextSeqNum, _sendBase, Constants::WindowSize, nullptr, 0);
 			_printer.PrintInformation(ApplicationType::Client, packet2, retransmit, false);
 			
 			write(_sockfd, packet2.GetRawData().data(), packet2.GetRawDataSize());

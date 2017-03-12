@@ -83,10 +83,10 @@ namespace RDTP
                 _os << " SYN" << endl;
                 break;
             case PacketType::ACK:
-                _os << packet.GetAcknowledgeNumber() << endl;
+                _os << packet.GetAcknowledgeNumber();
                 if (retransmission)
                     _os << " Retransmission";
-                _os << " FIN" << endl;
+                _os << " ACK" << endl;
                 break;
             case PacketType::FIN:
                 _os << packet.GetAcknowledgeNumber();
