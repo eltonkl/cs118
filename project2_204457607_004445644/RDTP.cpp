@@ -365,6 +365,7 @@ namespace RDTP
 		{
 			seconds start = duration_cast<seconds>(system_clock::now().time_since_epoch());
 			Packet packet2 = Packet(PacketType::ACK, _nextSeqNum, _sendBase, Constants::WindowSize, nullptr, 0);
+			bool finReceived = false;
 			if (!receiveFIN)
 				goto send_ack;
 			while (true)
@@ -384,7 +385,10 @@ namespace RDTP
 					len = recv(_sockfd, buf, Constants::MaxPacketSize, 0);
 					if (len <= 0)
 					{
-						cout << "Did not receive FIN during timed wait." << endl;
+						if (!finReceived)
+							cout << "Did not receive FIN during timed wait." << endl;
+						else
+							cout << "Timed wait finished." << endl;
 						break;
 					}
 
@@ -396,6 +400,8 @@ namespace RDTP
 						cerr << "Received unexpected packet, expected FIN." << endl;
 						goto failure;
 					}
+					else
+						finReceived = true;
 				}
 
 			send_ack:
