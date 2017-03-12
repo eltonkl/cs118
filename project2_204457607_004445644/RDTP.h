@@ -40,6 +40,8 @@ namespace RDTP
     public:
         // Three way handshake
         RDTPConnection(ApplicationType type, const int sockfd);
+        // Close connection protocol
+        ~RDTPConnection();
         bool IsConnectionEstablished() const;
 
         // Write data
@@ -53,6 +55,7 @@ namespace RDTP
         const int _sockfd;
         socklen_t _cli_len;
         _Internals::Printer _printer;
+        ApplicationType _type;
         struct sockaddr_in _cli_addr;
         uint16_t _nextSeqNum;
         uint16_t _sendBase;

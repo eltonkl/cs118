@@ -30,7 +30,10 @@ namespace RDTP
 		tv.tv_sec = 0;
 		tv.tv_usec = microsec;
 
-		return setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == 0;
+		bool result = setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == 0;
+		if (!result)
+			cerr << "Failed to set receive timeout value" << endl;
+		return result;
 	}
 
 	// Bytes
@@ -47,14 +50,22 @@ namespace RDTP
 
     // Three way handshake
     RDTPConnection::RDTPConnection(ApplicationType type, const int sockfd) :
-        _sockfd(sockfd), _cli_len(sizeof(_cli_addr)), _printer(cout)
+        _sockfd(sockfd), _cli_len(sizeof(_cli_addr)), _printer(cout), _type(type)
 	{
-		if (type == ApplicationType::Server)
+		if (_type == ApplicationType::Server)
 			ReceiveHandshake();
-		else //if (type == ApplicationType::Client)
+		else //if (_type == ApplicationType::Client)
 			InitiateHandshake();
 		_established = true;
     }
+
+	RDTPConnection::~RDTPConnection()
+	{
+		if (_type == ApplicationType::Server)
+			ReceiveFinish();
+		else //if (_type == ApplicationType::Client)
+			SendFinish();
+	}
 
 	bool RDTPConnection::IsConnectionEstablished() const
 	{
@@ -83,6 +94,8 @@ namespace RDTP
 		char buf[Constants::MaxPacketSize];
 
 		// LISTEN
+		if (!_setTimeout(_sockfd, 0))
+			goto perror_then_failure;
 		len = recvfrom(_sockfd, buf, Constants::MaxPacketSize, 0, (struct sockaddr*)&_cli_addr, &_cli_len);
 		if (len > 0)
 		{
@@ -106,10 +119,7 @@ namespace RDTP
 		// SYN_RCVD
 		{
 			if (!_setTimeout(_sockfd, Constants::RetransmissionTimeoutValue_us))
-			{
-				cerr << "Failed to set receive timeout value" << endl;
 				goto perror_then_failure;
-			}
 
 			_nextSeqNum = 0;
 			_sendBase += 1;
@@ -156,10 +166,7 @@ namespace RDTP
 		Packet packet = Packet(PacketType::SYN, _nextSeqNum, _sendBase, Constants::WindowSize, nullptr, 0);
 		
 		if (!_setTimeout(_sockfd, Constants::RetransmissionTimeoutValue_us))
-		{
-			cerr << "Failed to set receive timeout value" << endl;
 			goto perror_then_failure;
-		}
 
 		while (true)
 		{
