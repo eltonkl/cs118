@@ -23,6 +23,8 @@ void error(string msg)
     exit(1);
 }
 
+// TODO: Fix crash if server isn't running and this program is run
+
 int main(int argc, char** argv)
 {
     int sockfd, portno;
@@ -57,7 +59,7 @@ int main(int argc, char** argv)
     }
 
     {
-        cout << "Initiating RDTP connection as client" << endl;
+        cout << "Initiating RDTP connection as client." << endl;
         RDTPConnection rc(ApplicationType::Client, sockfd);
         if (!rc.IsConnectionEstablished())
             goto failure;

@@ -22,7 +22,10 @@ namespace RDTP
 		const static size_t HeaderSize; // = 8;
         // Milliseconds
 		const static size_t RetransmissionTimeoutValue; // = 500;
-        const static size_t RetransmissionTimeoutValue_us; // = 500;
+        // Microseconds
+        const static size_t RetransmissionTimeoutValue_us; // = 500000;
+        // Seconds
+        const static size_t MaximumFinishRetryTimeValue;
 
 		const static size_t InitialSlowStartThreshold; // = 15360;
 		const static size_t InitialCongestionWindowSize; // = 1024;

@@ -94,7 +94,7 @@ int main(int argc, char** argv)
 
     while (true)
     {
-        cout << "Initiating RDTP connection as server" << endl;
+        cout << "Initiating RDTP connection as server." << endl;
         RDTPConnection rc(ApplicationType::Server, sockfd);
         if (!rc.IsConnectionEstablished())
             continue;
@@ -123,6 +123,8 @@ int main(int argc, char** argv)
 
             bs.SendFile(ifs, end - beg);
         }
+
+        cout << "Done serving client." << endl;
     }
 
     close(sockfd);

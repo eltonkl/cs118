@@ -24,15 +24,15 @@ namespace RDTP
 		perror(msg.c_str());
 	}
 
-	bool _setTimeout(int sockfd, int microsec)
+	bool _setTimeout(int sockfd, int sec, int microsec)
 	{
 		struct timeval tv;
-		tv.tv_sec = 0;
+		tv.tv_sec = sec;
 		tv.tv_usec = microsec;
 
 		bool result = setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == 0;
 		if (!result)
-			cerr << "Failed to set receive timeout value" << endl;
+			cerr << "Failed to set receive timeout value." << endl;
 		return result;
 	}
 
@@ -44,6 +44,8 @@ namespace RDTP
 	// Milliseconds
 	const size_t Constants::RetransmissionTimeoutValue = 500;
 	const size_t Constants::RetransmissionTimeoutValue_us = Constants::RetransmissionTimeoutValue * 1000;
+
+	const size_t Constants::MaximumFinishRetryTimeValue = 5;
 
 	const size_t Constants::InitialSlowStartThreshold = 15360;
 	const size_t Constants::InitialCongestionWindowSize = 1024;
@@ -87,6 +89,16 @@ namespace RDTP
 		(void)count;
     }
 
+	// HERE BE DRAGONS
+	// DON'T SCROLL PAST THIS PART OF THE FILE, OR YOU MIGHT LOSE YOUR SANITY
+
+	// Really should have refactored code into helper functions, but code quality isn't part of the grade
+
+	// For the sender of a packet, the ACK # indicates how many bytes it has received from the other
+	// For the sender of a packet, the SEQ # indicates how many bytes it has transferred successfully
+	// For the receiver of a packet, the ACK # indicates how many bytes it has transferred sucessfully to the other
+	// For the receiver of a packet, the SEQ # indicates how many bytes it has received from the other
+
 	// Server
 	void RDTPConnection::ReceiveHandshake()
 	{
@@ -94,7 +106,7 @@ namespace RDTP
 		char buf[Constants::MaxPacketSize];
 
 		// LISTEN
-		if (!_setTimeout(_sockfd, 0))
+		if (!_setTimeout(_sockfd, 0, 0))
 			goto perror_then_failure;
 		len = recvfrom(_sockfd, buf, Constants::MaxPacketSize, 0, (struct sockaddr*)&_cli_addr, &_cli_len);
 		if (len > 0)
@@ -106,19 +118,19 @@ namespace RDTP
 				_sendBase = packet.GetSequenceNumber();
 			else
 			{
-				cerr << "Expected SYN packet, got something else" << endl;
+				cerr << "Expected SYN packet, got something else." << endl;
 				goto failure;
 			}
 		}
 		else
 		{
-			cerr << "recvfrom failed" << endl;
+			cerr << "recvfrom failed." << endl;
 			goto perror_then_failure;
 		}
 
 		// SYN_RCVD
 		{
-			if (!_setTimeout(_sockfd, Constants::RetransmissionTimeoutValue_us))
+			if (!_setTimeout(_sockfd, 0, Constants::RetransmissionTimeoutValue_us))
 				goto perror_then_failure;
 
 			_nextSeqNum = 0;
@@ -137,7 +149,7 @@ namespace RDTP
 
 				if (packet.GetPacketType() != PacketType::ACK)
 				{
-					cerr << "Received unexpected packet, expected ACK" << endl;
+					cerr << "Received unexpected packet, expected ACK." << endl;
 					goto failure;
 				}
 			}
@@ -165,18 +177,17 @@ namespace RDTP
 		_nextSeqNum = 0;
 		Packet packet = Packet(PacketType::SYN, _nextSeqNum, _sendBase, Constants::WindowSize, nullptr, 0);
 		
-		if (!_setTimeout(_sockfd, Constants::RetransmissionTimeoutValue_us))
+		if (!_setTimeout(_sockfd, 0, Constants::RetransmissionTimeoutValue_us))
 			goto perror_then_failure;
 
 		while (true)
 		{
-			// milliseconds ms = duration_cast<milliseconds>(system_clock::now().time_since_epoch());
 			_printer.PrintInformation(ApplicationType::Client, packet, retransmit, false);
 			write(_sockfd, packet.GetRawData().data(), packet.GetRawDataSize());
 			
 			// SYN_SENT
 			len = recv(_sockfd, buf, Constants::MaxPacketSize, 0);
-			if (len < 0) // Response was not received in 500 ms, retry
+			if (len == 0) // Response was not received in 500 ms, retry
 			{
 				retransmit = true;
 				continue;
@@ -193,7 +204,7 @@ namespace RDTP
 			}
 			else
 			{
-				cerr << "Received unexpected packet, expected SYNACK" << endl;
+				cerr << "Received unexpected packet, expected SYNACK." << endl;
 				goto failure;
 			}
 		}
@@ -220,12 +231,183 @@ namespace RDTP
 	// Server
 	void RDTPConnection::ReceiveFinish()
 	{
+		ssize_t len;
+		char buf[Constants::MaxPacketSize];
 
+		if (!_setTimeout(_sockfd, 0, 0))
+			goto perror_then_failure;
+		len = recvfrom(_sockfd, buf, Constants::MaxPacketSize, 0, (struct sockaddr*)&_cli_addr, &_cli_len);
+		if (len > 0)
+		{
+			Packet packet = Packet::FromRawData(buf, len);
+			_printer.PrintInformation(ApplicationType::Server, packet, false, true);
+
+			if (packet.GetPacketType() == PacketType::FIN)
+				_sendBase = packet.GetSequenceNumber();
+			else
+			{
+				cerr << "Expected FIN packet, got something else." << endl;
+				goto failure;
+			}
+		}
+		else
+		{
+			cerr << "recvfrom failed." << endl;
+			goto perror_then_failure;
+		}
+
+		{
+			_sendBase += 1;
+
+			Packet packet2 = Packet(PacketType::ACK, _nextSeqNum, _sendBase, Constants::WindowSize, nullptr, 0);
+			_printer.PrintInformation(ApplicationType::Server, packet2, false, false);
+
+			sendto(_sockfd, packet2.GetRawData().data(), packet2.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
+		}
+
+		// CLOSE_WAIT + LAST_ACK
+		{
+			Packet packet3 = Packet(PacketType::FIN, _nextSeqNum, _sendBase, Constants::WindowSize, nullptr, 0);
+			bool retransmit = false;
+			seconds start = duration_cast<seconds>(system_clock::now().time_since_epoch());
+
+			if (!_setTimeout(_sockfd, 0, Constants::RetransmissionTimeoutValue_us))
+				goto perror_then_failure;
+
+			while (true)
+			{
+				seconds curTime = duration_cast<seconds>(system_clock::now().time_since_epoch());
+				if (abs(duration_cast<seconds>(curTime - start).count()) >= (int)Constants::MaximumFinishRetryTimeValue)
+				{
+					cerr << "Unable to properly finish RDTP connection." << endl;
+					break;
+				}
+
+				_printer.PrintInformation(ApplicationType::Server, packet3, retransmit, false);
+				sendto(_sockfd, packet3.GetRawData().data(), packet3.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
+
+				len = recvfrom(_sockfd, buf, Constants::MaxPacketSize, 0, (struct sockaddr*)&_cli_addr, &_cli_len);
+				if (len > 0)
+				{
+					Packet packet = Packet::FromRawData(buf, len);
+					_printer.PrintInformation(ApplicationType::Server, packet, false, true);
+
+					if (packet.GetPacketType() != PacketType::ACK)
+					{
+						cerr << "Received unexpected packet, expected ACK." << endl;
+						goto failure;
+					}
+					else
+						break;
+				}
+				else
+				{
+					retransmit = true;
+					continue;
+				}
+			}
+		}
+
+		return;
+	perror_then_failure:
+		_Error("RDTP connection close failed");
+	failure:
+		exit(1);
 	}
 
 	// Client
 	void RDTPConnection::SendFinish()
 	{
+		ssize_t len;
+		char buf[Constants::MaxPacketSize];
 
+		bool retransmit = false;
+		Packet packet = Packet(PacketType::FIN, _nextSeqNum, _sendBase, Constants::WindowSize, nullptr, 0);
+		bool receiveFIN = true; // Still need to receive a FIN packet
+
+		if (!_setTimeout(_sockfd, 0, Constants::RetransmissionTimeoutValue_us))
+			goto perror_then_failure;
+
+		while (true)
+		{
+			_printer.PrintInformation(ApplicationType::Client, packet, retransmit, false);
+			write(_sockfd, packet.GetRawData().data(), packet.GetRawDataSize());
+
+			// FIN-WAIT-1
+			len = recv(_sockfd, buf, Constants::MaxPacketSize, 0);
+			if (len == 0) // Response was not received in 500 ms, retry
+			{
+				retransmit = true;
+				continue;
+			}
+
+			Packet packet = Packet::FromRawData(buf, len);
+			_printer.PrintInformation(ApplicationType::Client, packet, false, true);
+
+			_nextSeqNum = packet.GetAcknowledgeNumber();
+			_sendBase = packet.GetSequenceNumber();
+
+			if (packet.GetPacketType() == PacketType::ACK)
+				break;
+			else if (packet.GetPacketType() == PacketType::FIN)
+			{
+				receiveFIN = false;
+				break;
+			}
+			else
+			{
+				cerr << "Received unexpected packet, expected ACK or FIN." << endl;
+				goto failure;
+			}
+		}
+
+		// FIN-WAIT-2
+		{
+			seconds start = duration_cast<seconds>(system_clock::now().time_since_epoch());
+			Packet packet2 = Packet(PacketType::ACK, _nextSeqNum, _sendBase, Constants::WindowSize, nullptr, 0);
+			if (!receiveFIN)
+				goto send_ack;
+			while (true)
+			{
+				{
+					seconds curTime = duration_cast<seconds>(system_clock::now().time_since_epoch());
+					auto elapsed = curTime - start;
+					if (duration_cast<seconds>(elapsed).count() >= (int)Constants::MaximumFinishRetryTimeValue)
+					{
+						cout << "Timed wait finished." << endl;
+						break;
+					}
+
+					auto remaining = seconds(Constants::MaximumFinishRetryTimeValue) - elapsed;
+					auto remaining_usec = remaining - duration_cast<seconds>(remaining);
+					_setTimeout(_sockfd, duration_cast<seconds>(remaining).count(), duration_cast<microseconds>(remaining_usec).count());
+					len = recv(_sockfd, buf, Constants::MaxPacketSize, 0);
+					if (len <= 0)
+					{
+						cout << "Did not receive FIN during timed wait." << endl;
+						break;
+					}
+
+					Packet packet = Packet::FromRawData(buf, len);
+					_printer.PrintInformation(ApplicationType::Client, packet, false, true);
+
+					if (packet.GetPacketType() != PacketType::FIN)
+					{
+						cerr << "Received unexpected packet, expected FIN." << endl;
+						goto failure;
+					}
+				}
+
+			send_ack:
+				_printer.PrintInformation(ApplicationType::Client, packet2, false, false);
+				write(_sockfd, packet2.GetRawData().data(), packet2.GetRawDataSize());
+			}
+		}
+
+		return;
+	perror_then_failure:
+		_Error("RDTP connection close failed");
+	failure:
+		return;
 	}
 }

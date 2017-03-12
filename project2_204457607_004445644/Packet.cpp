@@ -33,7 +33,8 @@ namespace RDTP
             assert(dataLength <= Constants::MaxPacketSize - Constants::HeaderSize);
             _rawData.reserve(Constants::HeaderSize + dataLength);
             GenerateHeader();
-            _rawData.insert(_rawData.begin() + Constants::HeaderSize, data, data + dataLength);
+            if (data)
+                _rawData.insert(_rawData.begin() + Constants::HeaderSize, data, data + dataLength);
         }
 
         PacketType Packet::GetPacketType() const
