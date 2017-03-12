@@ -58,23 +58,27 @@ int main(int argc, char** argv)
 
     cout << "Initiating RDTP connection as client" << endl;
     RDTPConnection rc(ApplicationType::Client, sockfd);
-    BFTPSession bs(rc);
+    if (!rc.IsConnectionEstablished())
+        goto failure;
 
-    string filename(argv[3]);
-    cout << "Requesting file " << filename << endl;
-
-    bs.SendFilename(filename);
-
-    if (bs.WasFileFound())
     {
-        cout << "File found. Writing to ./received.data" << endl;
-        ofstream ofs("./received.data", ios::binary | ios::trunc);
+        string filename(argv[3]);
+        cout << "Requesting file " << filename << endl;
+        BFTPSession bs(rc);
+        bs.SendFilename(filename);
 
-        bs.ReceiveFile(ofs);
+        if (bs.WasFileFound())
+        {
+            cout << "File found. Writing to ./received.data" << endl;
+            ofstream ofs("./received.data", ios::binary | ios::trunc);
+
+            bs.ReceiveFile(ofs);
+        }
+        else
+            cout << "File not found. Exiting." << endl;
     }
-    else
-        cout << "File not found. Exiting." << endl;
 
+failure:
     close(sockfd);
     return 0;
 }

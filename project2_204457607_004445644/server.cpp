@@ -10,6 +10,7 @@
 #include <cassert>
 #include <sstream>
 #include <string>
+#include <iterator>
 #include <iomanip>
 
 #include "RDTP.h"
@@ -52,14 +53,24 @@ void test()
     string a = ss.str();
     stringstream ss2;
     x = 0;
+    ss2 << '1' << a;
+    cout << string(istream_iterator<char>(ss2), istream_iterator<char>()) << endl;
+    ss2 = stringstream();
     ss2 << a;
     ss2 >> x;
     cout << x << endl;
+
+    int sockfd = socket(AF_INET, SOCK_DGRAM, 0);
+    struct timeval tv;
+    socklen_t tv_len;
+    cout << getsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, &tv_len) << endl;
+    close(sockfd);
+    assert(false);
 }
 
 int main(int argc, char** argv)
 {
-    // test();
+    test();
     int sockfd, portno;
     struct sockaddr_in serv_addr;
 
@@ -85,6 +96,8 @@ int main(int argc, char** argv)
     {
         cout << "Initiating RDTP connection as server" << endl;
         RDTPConnection rc(ApplicationType::Server, sockfd);
+        if (!rc.IsConnectionEstablished())
+            continue;
         BFTPSession bs(rc);
 
         string filename = bs.ReceiveFilename();
@@ -108,7 +121,7 @@ int main(int argc, char** argv)
             end = ifs.tellg();
             ifs.seekg(0, std::ios::beg);
 
-            bs.SendFile(ifs, beg - end);
+            bs.SendFile(ifs, end - beg);
         }
     }
 

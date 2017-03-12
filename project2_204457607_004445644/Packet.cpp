@@ -66,9 +66,19 @@ namespace RDTP
             return vector<char>(_rawData.begin() + Constants::HeaderSize, _rawData.end());
         }
 
-        vector<char> Packet::GetRawData() const
+        const vector<char>& Packet::GetRawData() const
         {
             return _rawData;
+        }
+
+        size_t Packet::GetDataSize() const
+        {
+            return _rawData.size() - Constants::HeaderSize;
+        }
+
+        size_t Packet::GetRawDataSize() const
+        {
+            return _rawData.size();
         }
 
         Packet::Packet(char* rawData, size_t rawDataLength) :
@@ -95,6 +105,8 @@ namespace RDTP
                 break;
             case 0b00000000:
                 _packetType = PacketType::NONE;
+            case 0b11000000:
+                _packetType = PacketType::SYNACK;
             default:
                 _valid = false;
                 break;
@@ -126,6 +138,8 @@ namespace RDTP
                 break;
             case PacketType::NONE:
                 byte = 0b00000000;
+            case PacketType::SYNACK:
+                byte = 0b11000000;
             }
             _rawData.push_back(byte);
             _rawData.push_back(0);

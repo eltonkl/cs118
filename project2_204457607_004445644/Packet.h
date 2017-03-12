@@ -20,7 +20,8 @@ namespace RDTP
             SYN,
             ACK,
             FIN,
-            NONE
+            NONE,
+            SYNACK
         };
 
         class Packet
@@ -35,10 +36,12 @@ namespace RDTP
             uint16_t GetWindowSize() const;
             bool GetValid() const;
             std::vector<char> GetData() const;
-            std::vector<char> GetRawData() const;
+            const std::vector<char>& GetRawData() const;
+            size_t GetDataSize() const;
+            size_t GetRawDataSize() const;
 
         private:
-            Packet(char* data, size_t dataLength);
+            Packet(char* rawData, size_t dataLength);
 
             void ParseRawData();
             void GenerateHeader();

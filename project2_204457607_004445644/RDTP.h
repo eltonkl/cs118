@@ -22,6 +22,7 @@ namespace RDTP
 		const static size_t HeaderSize; // = 8;
         // Milliseconds
 		const static size_t RetransmissionTimeoutValue; // = 500;
+        const static size_t RetransmissionTimeoutValue_us; // = 500;
 
 		const static size_t InitialSlowStartThreshold; // = 15360;
 		const static size_t InitialCongestionWindowSize; // = 1024;
@@ -39,6 +40,8 @@ namespace RDTP
     public:
         // Three way handshake
         RDTPConnection(ApplicationType type, const int sockfd);
+        bool IsConnectionEstablished() const;
+
         // Write data
         template <typename Iterator>
         void Write(Iterator begin, Iterator end);
@@ -51,6 +54,15 @@ namespace RDTP
         socklen_t _cli_len;
         _Internals::Printer _printer;
         struct sockaddr_in _cli_addr;
+        uint16_t _nextSeqNum;
+        uint16_t _sendBase;
+        bool _established;
+
+        void ReceiveHandshake();
+        void InitiateHandshake();
+
+        void ReceiveFinish();
+        void SendFinish();
     };
 }
 

@@ -56,6 +56,12 @@ namespace RDTP
                     _os << " Retransmission";
                 _os << endl;
                 break;
+            case PacketType::SYNACK:
+                _os << packet.GetSequenceNumber();
+                _os << " " << packet.GetWindowSize();
+                if (retransmission)
+                    _os << " Retransmission";
+                _os << " SYNACK" << endl;
             }
         }
 
@@ -91,6 +97,8 @@ namespace RDTP
             case PacketType::NONE:
                 _os << packet.GetSequenceNumber() << endl;
                 break;
+            case PacketType::SYNACK:
+                _os << packet.GetSequenceNumber();
             }
         }
     }

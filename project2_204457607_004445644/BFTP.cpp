@@ -58,10 +58,9 @@ namespace BFTP
     void BFTPSession::SendFile(std::basic_istream<char>& is, size_t size)
     {
         stringstream ss;
-        ss << setfill('0') << setw(20) << size;
+        ss << '1' << setfill('0') << setw(20) << size;
 
-        _rc << ss;
-        _rc << is;
+        _rc << ss << is;
     }
 
     void BFTPSession::ReceiveFile(std::basic_ostream<char>& os)
