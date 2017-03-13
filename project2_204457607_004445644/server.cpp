@@ -115,11 +115,11 @@ int main(int argc, char** argv)
         else
         {
             cout << "File found. Sending." << endl;
-            std::streampos beg, end;
+            streampos beg, end;
             beg = ifs.tellg();
-            ifs.seekg(0, std::ios::end);
+            ifs.seekg(0, ios::end);
             end = ifs.tellg();
-            ifs.seekg(0, std::ios::beg);
+            ifs.seekg(0, ios::beg);
 
             bs.SendFile(ifs, end - beg);
         }
