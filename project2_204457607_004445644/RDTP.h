@@ -16,19 +16,19 @@ namespace RDTP
     struct Constants
     {
         // Bytes
-		const static size_t MaxPacketSize; // = 1024;
-		const static size_t MaxSequenceNumber; // = 30720;
-		const static size_t WindowSize; // = 5120;
-		const static size_t HeaderSize; // = 8;
+		const static uint32_t MaxPacketSize; // = 1024;
+		const static uint32_t MaxSequenceNumber; // = 30720;
+		const static uint32_t WindowSize; // = 5120;
+		const static uint32_t HeaderSize; // = 8;
         // Milliseconds
-		const static size_t RetransmissionTimeoutValue; // = 500;
+		const static uint32_t RetransmissionTimeoutValue; // = 500;
         // Microseconds
-        const static size_t RetransmissionTimeoutValue_us; // = 500000;
+        const static uint32_t RetransmissionTimeoutValue_us; // = 500000;
         // Seconds
-        const static size_t MaximumFinishRetryTimeValue;
+        const static uint32_t MaximumFinishRetryTimeValue;
 
-		const static size_t InitialSlowStartThreshold; // = 15360;
-		const static size_t InitialCongestionWindowSize; // = 1024;
+		const static uint32_t InitialSlowStartThreshold; // = 15360;
+		const static uint32_t InitialCongestionWindowSize; // = 1024;
     };
 
     enum class ApplicationType
@@ -60,9 +60,14 @@ namespace RDTP
         _Internals::Printer _printer;
         ApplicationType _type;
         struct sockaddr_in _cli_addr;
-        uint16_t _nextSeqNum;
-        uint16_t _sendBase;
+        uint64_t _nextSeqNum;
+        uint64_t _sendBase;
         bool _established;
+        // If the three-way handshake on the server's
+        // behalf received a data packet instead of an
+        // ACK (aka the ACK dropped), this will not be
+        // nullptr
+        _Internals::Packet* _firstDataPacket;
 
         void ReceiveHandshake();
         void InitiateHandshake();

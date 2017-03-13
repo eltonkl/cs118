@@ -37,32 +37,35 @@ namespace RDTP
 	}
 
 	// Bytes
-	const size_t Constants::MaxPacketSize = 1024;
-	const size_t Constants::MaxSequenceNumber = 30720;
-	const size_t Constants::WindowSize = 5120;
-	const size_t Constants::HeaderSize = 8;
+	const uint32_t Constants::MaxPacketSize = 1024;
+	const uint32_t Constants::MaxSequenceNumber = 30720;
+	const uint32_t Constants::WindowSize = 5120;
+	const uint32_t Constants::HeaderSize = 8;
 	// Milliseconds
-	const size_t Constants::RetransmissionTimeoutValue = 500;
-	const size_t Constants::RetransmissionTimeoutValue_us = Constants::RetransmissionTimeoutValue * 1000;
+	const uint32_t Constants::RetransmissionTimeoutValue = 500;
+	const uint32_t Constants::RetransmissionTimeoutValue_us = Constants::RetransmissionTimeoutValue * 1000;
 
-	const size_t Constants::MaximumFinishRetryTimeValue = 5;
+	const uint32_t Constants::MaximumFinishRetryTimeValue = 5;
 
-	const size_t Constants::InitialSlowStartThreshold = 15360;
-	const size_t Constants::InitialCongestionWindowSize = 1024;
+	const uint32_t Constants::InitialSlowStartThreshold = 15360;
+	const uint32_t Constants::InitialCongestionWindowSize = 1024;
 
     // Three way handshake
     RDTPConnection::RDTPConnection(ApplicationType type, const int sockfd) :
         _sockfd(sockfd), _cli_len(sizeof(_cli_addr)), _printer(cout), _type(type)
 	{
+		_established = true;
+		_firstDataPacket = nullptr;
 		if (_type == ApplicationType::Server)
 			ReceiveHandshake();
 		else //if (_type == ApplicationType::Client)
 			InitiateHandshake();
-		_established = true;
     }
 
 	RDTPConnection::~RDTPConnection()
 	{
+		if (_firstDataPacket)
+			delete _firstDataPacket;
 		if (_type == ApplicationType::Server)
 			ReceiveFinish();
 		else //if (_type == ApplicationType::Client)
@@ -137,25 +140,35 @@ namespace RDTP
 			_sendBase += 1;
 			Packet packet = Packet(PacketType::SYNACK, _nextSeqNum, _sendBase, Constants::WindowSize, nullptr, 0);
 			bool retransmit = false;
-	
-			_printer.PrintInformation(ApplicationType::Server, packet, retransmit, false);
-			sendto(_sockfd, packet.GetRawData().data(), packet.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
-			
-			len = recvfrom(_sockfd, buf, Constants::MaxPacketSize, 0, (struct sockaddr*)&_cli_addr, &_cli_len);
-			if (len > 0)
-			{
-				Packet packet = Packet::FromRawData(buf, len);
-				_printer.PrintInformation(ApplicationType::Server, packet, false, true);
 
-				if (packet.GetPacketType() != PacketType::ACK)
-				{
-					cerr << "Received unexpected packet, expected ACK." << endl;
-					goto failure;
-				}
-			}
-			else
+			while (true)
 			{
-				// http://stackoverflow.com/questions/16259774/what-if-a-tcp-handshake-segment-is-lost
+				_printer.PrintInformation(ApplicationType::Server, packet, retransmit, false);
+				sendto(_sockfd, packet.GetRawData().data(), packet.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
+
+				len = recvfrom(_sockfd, buf, Constants::MaxPacketSize, 0, (struct sockaddr*)&_cli_addr, &_cli_len);
+				if (len > 0)
+				{
+					Packet packet = Packet::FromRawData(buf, len);
+					_printer.PrintInformation(ApplicationType::Server, packet, false, true);
+
+					if (packet.GetPacketType() == PacketType::SYN)
+					{
+						// Resend SYNACK
+						retransmit = true;
+						continue;
+					}
+					else if (packet.GetPacketType() != PacketType::ACK)
+					{
+						// Forward this packet to Read
+						_firstDataPacket = new Packet(packet);
+						break;
+					}
+					else
+						break;
+				}
+				else
+					retransmit = true;
 			}
 		}
 		// ESTABLISHED
@@ -187,7 +200,7 @@ namespace RDTP
 			
 			// SYN_SENT
 			len = recv(_sockfd, buf, Constants::MaxPacketSize, 0);
-			if (len == 0) // Response was not received in 500 ms, retry
+			if (len <= 0) // Response was not received in 500 ms, retry
 			{
 				retransmit = true;
 				continue;
@@ -214,7 +227,7 @@ namespace RDTP
 			_sendBase += 1;
 
 			Packet packet2 = Packet(PacketType::ACK, _nextSeqNum, _sendBase, Constants::WindowSize, nullptr, 0);
-			_printer.PrintInformation(ApplicationType::Client, packet2, retransmit, false);
+			_printer.PrintInformation(ApplicationType::Client, packet2, false, false);
 			
 			write(_sockfd, packet2.GetRawData().data(), packet2.GetRawDataSize());
 			// Hope it sends: http://stackoverflow.com/questions/16259774/what-if-a-tcp-handshake-segment-is-lost
@@ -312,7 +325,7 @@ namespace RDTP
 	perror_then_failure:
 		_Error("RDTP connection close failed");
 	failure:
-		exit(1);
+		return;
 	}
 
 	// Client
@@ -324,6 +337,7 @@ namespace RDTP
 		bool retransmit = false;
 		Packet packet = Packet(PacketType::FIN, _nextSeqNum, _sendBase, Constants::WindowSize, nullptr, 0);
 		bool receiveFIN = true; // Still need to receive a FIN packet
+		bool finReceived = false; // Was a FIN packet received
 
 		if (!_setTimeout(_sockfd, 0, Constants::RetransmissionTimeoutValue_us))
 			goto perror_then_failure;
@@ -335,7 +349,7 @@ namespace RDTP
 
 			// FIN-WAIT-1
 			len = recv(_sockfd, buf, Constants::MaxPacketSize, 0);
-			if (len == 0) // Response was not received in 500 ms, retry
+			if (len <= 0) // Response was not received in 500 ms, retry
 			{
 				retransmit = true;
 				continue;
@@ -344,14 +358,15 @@ namespace RDTP
 			Packet packet = Packet::FromRawData(buf, len);
 			_printer.PrintInformation(ApplicationType::Client, packet, false, true);
 
-			_nextSeqNum = packet.GetAcknowledgeNumber();
-			_sendBase = packet.GetSequenceNumber();
+			_nextSeqNum = packet.GetAcknowledgeNumber(); // ?
+			_sendBase = packet.GetSequenceNumber(); // ?
 
 			if (packet.GetPacketType() == PacketType::ACK)
 				break;
 			else if (packet.GetPacketType() == PacketType::FIN)
 			{
 				receiveFIN = false;
+				finReceived = true;
 				break;
 			}
 			else
@@ -365,7 +380,6 @@ namespace RDTP
 		{
 			seconds start = duration_cast<seconds>(system_clock::now().time_since_epoch());
 			Packet packet2 = Packet(PacketType::ACK, _nextSeqNum, _sendBase, Constants::WindowSize, nullptr, 0);
-			bool finReceived = false;
 			if (!receiveFIN)
 				goto send_ack;
 			while (true)
