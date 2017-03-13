@@ -69,6 +69,9 @@ namespace RDTP
         // nullptr
         _Internals::Packet* _firstDataPacket;
 
+        template <typename Iterator>
+        std::vector<char> GetDataForNextPacket(Iterator& begin, const Iterator& end);
+
         void ReceiveHandshake();
         void InitiateHandshake();
 
