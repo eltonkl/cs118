@@ -88,8 +88,51 @@ namespace RDTP
     void RDTPConnection::Read(std::basic_ostream<char>& os, size_t count)
     {
 		ostream_iterator<char> osi(os);
-		(void)osi;
-		(void)count;
+
+		ssize_t len;
+		char buf[Constants::MaxPacketSize];
+
+		if (_type == ApplicationType::Client) {
+			if (!_setTimeout(_sockfd, 0, 0))
+				goto perror_then_failure;
+			
+			len = recv(_sockfd, buf, Constants::MaxPacketSize, 0);
+			if (len > 0) {
+				// Client got packet from Server
+				Packet packet = Packet::FromRawData(buf, len);
+				_printer.PrintInformation(ApplicationType::Client, packet, false, true);
+
+				// TODO: handle count
+				vector<char> data = packet.GetData();
+				copy(data.begin(), data.end(), osi);
+
+
+				// send ACK back
+				{
+					// TODO: update recv_base?
+
+					// TODO: what's the SEQ in SR's ACK packet?
+					Packet packet2 = Packet(PacketType::ACK, 404, packet.GetAcknowledgeNumber(), Constants::WindowSize, nullptr, 0);
+					_printer.PrintInformation(ApplicationType::Client, packet2, false, false);
+			
+					// hope for the best :)
+					write(_sockfd, packet2.GetRawData().data(), packet2.GetRawDataSize());
+				}
+
+
+			} else {
+				cerr << "recv in client failed." << endl;
+				goto perror_then_failure;
+			}
+
+		} else {
+			// _type == ApplicationType::Server
+			// TODO: Server Read
+
+		}
+
+	perror_then_failure:
+		_Error("RDTP Read failed");
     }
 
 	// HERE BE DRAGONS
