@@ -4,20 +4,36 @@ namespace RDTP
     std::vector<char> RDTPConnection::GetDataForNextPacket(Iterator& begin, const Iterator& end) {
 
         size_t maxDataSize = Constants::MaxPacketSize - Constants::HeaderSize;
-        if (std::distance(begin, end) >= maxDataSize) {
-            std::vector<char> data(maxDataSize);
-            // std::advance(begin, maxDataSize);
-            std::vector<char>::iterator it = data.begin();
-            while (it != data.end()) {
-                *it++ = *begin++;
-            }
-
-            return data;
+        size_t vSize;
+        if (std::distance(begin, end) >= (int)maxDataSize) {
+            vSize = maxDataSize;
         } else {
-            std::vector<char> data(begin, end);
-            begin = end;
-            return data;
+            vSize = std::distance(begin, end);
         }
+
+        std::vector<char> data(vSize);
+        std::vector<char>::iterator it = data.begin();
+
+        while (vSize--) {
+            *it++ = *begin++;
+        }
+
+        return data;
+
+        // if (std::distance(begin, end) >= maxDataSize) {
+        //     std::vector<char> data(maxDataSize);
+        //     // std::advance(begin, maxDataSize);
+        //     std::vector<char>::iterator it = data.begin();
+        //     while (it != data.end()) {
+        //         *it++ = *begin++;
+        //     }
+
+        //     return data;
+        // } else {
+        //     std::vector<char> data(begin, end);
+        //     begin = end;
+        //     return data;
+        // }
 
     }
     
@@ -26,6 +42,40 @@ namespace RDTP
     {
         // (void)begin;
         // (void)end;
+        std::vector<char> data = GetDataForNextPacket(begin, end);
+        std::vector<char>::iterator it = data.begin();
+        std::cerr << "Data is: " << std::endl;
+        while (it != data.end()) {
+            std::cerr << *it++;
+        }
+        std::cerr << std::endl;
+
+        // (std::vector<char>::iterator) begin;
+        // (std::vector<char>::iterator) end;
+
+        // std::cerr << "Data is: " << std::endl;
+        // // std::vector<char>::iterator it = begin;
+        // // while (it != end) {
+        // //     std::cerr << *it;
+        // // }
+        // // std::cerr << std::endl;
+
+        // // DO i put End?
+        // // std::vector<char> data(std::istream_iterator<char>(begin), std::istream_iterator<char>(end));
+        // // std::istream_iterator<char> it = std::istream_iterator<char>(begin);
+        // // // char c =    it;
+        // // while (true) {
+        // //     std::cerr << *it;
+        // // }
+        // // std::cerr << std::endl;
+        // // std::copy(std::istream_iterator<char>(begin), std::istream_iterator<char>(), std::ostream_iterator<char>(std::cerr));
+
+        // // std::istream_iterator<char>(begin)
+        // while (begin != end) {
+        //     std::cerr << *begin++ << std::endl;
+        // }
+
+        // std::cerr << *begin << std::endl;
 
         // TODO: only one packet rn
 
@@ -42,7 +92,10 @@ namespace RDTP
 
         if (_type == ApplicationType::Server) {
 
-            std::vector<char> data = GetDataForNextPacket(begin, end);
+            // std::vector<char> data = GetDataForNextPacket(begin, end);
+            std::vector<char> data = { 'h', 'e', 'l', 'l', 'o'};
+
+
             _Internals::Packet packet = _Internals::Packet(_Internals::PacketType::NONE, _nextSeqNum, _sendBase, Constants::WindowSize, data.data(), data.size());
 			bool retransmit = false;
 
@@ -74,59 +127,5 @@ namespace RDTP
             std::cerr << "RIP" << std::endl;
 		// _Error("RDTP handshake failed");
 
-
-
-
-
-
-
-
-
-
-
-    //     bool retransmit = false;
-
-    //     vector<char> data = GetDataForNextPacket(begin, end);
-
-    //     Packet packet = Packet(PacketType::NONE, _nextSeqNum, _sendBase, Constants::WindowSize, data, data.size());
-
-    //     if (!_setTimeout(_sockfd, 0, Constants::RetransmissionTimeoutValue_us)) {
-	// 		goto perror_then_failure;
-    //     }
-
-    //     while (true)
-	// 	{
-	// 		_printer.PrintInformation(_type, packet, retransmit, false);
-	// 		write(_sockfd, packet.GetRawData().data(), packet.GetRawDataSize());
-
-	// 		// wait for ACK
-    //         // assume no concurrent connection in server
-	// 		len = recv(_sockfd, buf, Constants::MaxPacketSize, 0);
-	// 		if (len == 0) // Response was not received in 500 ms, retry
-	// 		{
-	// 			retransmit = true;
-	// 			continue;
-	// 		}
-
-    //         Packet packet = Packet::FromRawData(buf, len);
-	// 		_printer.PrintInformation(ApplicationType::Client, packet, false, true);
-
-	// 		if (packet.GetPacketType() == PacketType::ACK)
-	// 		{
-	// 			_nextSeqNum = packet.GetAcknowledgeNumber();
-	// 			_sendBase = packet.GetSequenceNumber();
-	// 			break;
-	// 		}
-	// 		else
-	// 		{
-	// 			cerr << "Received unexpected packet, expected SYNACK." << endl;
-	// 			goto failure;
-	// 		}
-
-    //     }
-    // perror_then_failure:
-	// 	_Error("RDTP handshake failed");
-	// failure:
-	// 	_established = false;
     }
 }
