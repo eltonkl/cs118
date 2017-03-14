@@ -44,8 +44,8 @@ namespace RDTP
 	// Milliseconds
 	const uint32_t Constants::RetransmissionTimeoutValue = 500;
 	const uint32_t Constants::RetransmissionTimeoutValue_us = Constants::RetransmissionTimeoutValue * 1000;
-
-	const uint32_t Constants::MaximumFinishRetryTimeValue = 5;
+	// Seconds
+	const uint32_t Constants::MaximumFinishRetryTimeValue = 1; // (2 * RTO)
 
 	const uint32_t Constants::InitialSlowStartThreshold = 15360;
 	const uint32_t Constants::InitialCongestionWindowSize = 1024;
@@ -67,9 +67,9 @@ namespace RDTP
 		if (_firstDataPacket)
 			delete _firstDataPacket;
 		if (_type == ApplicationType::Server)
-			ReceiveFinish();
-		else //if (_type == ApplicationType::Client)
 			SendFinish();
+		else //if (_type == ApplicationType::Client)
+			ReceiveFinish();
 	}
 
 	bool RDTPConnection::IsConnectionEstablished() const

@@ -1,0 +1,76 @@
+handshake:
+    client:
+        pick send_base
+        send SYN
+        receive SYNACK
+        set rcv_base = SYNACK # + 1
+        send_base += 1
+        send ACK
+    server:
+        pick send_base
+        receive SYN
+        rcv_base = SYN # + 1
+        send SYNACK
+        receive ACK
+transmit:
+    sender:
+        int send_base
+        while true
+            for all packets that timed out
+                resend packet
+                reset timestamp
+            if nextseqnum < send_base + window_size
+                prepare new packet (size == min(max packet size, send_base + window_size - nextseqnum))
+                send packet
+                update nextseqnum += size
+            while minheap.top() == send_base
+                send_base = send_base + size of packet(minheap.top())
+                delete packet with minheap.top() == ACK from table
+                update smallestReceivedACK from minheap        
+            try to receive packet for RTO time (500ms)
+                if send_base <= ACK <= send_base + window_size
+                    add to minheap
+                    delete packet(ACK#) from list
+                else
+                    ignore
+    receiver:
+        while true
+            block until packet is received
+            if rcvbase - window_size <= seq <= rcvbase - 1
+                ACK(seq)
+            else if rcvbase <= seq <= rcvbase + window_size - 1
+                ACK(seq)
+                insert into buffer list which is ordered by sequence
+                while rcvbase == left most entry of list
+                    write packet data
+                    update rcvbase += size of packet
+                    remote entry from list
+            else
+                do nothing
+finish
+    initiator:
+        while true
+            send FIN(send_base) with timeout
+            receive ACK
+            check ACK.# == send_base
+                if not
+                    ignore
+                else
+                    break
+        send_base += 1
+        while true
+            receive packet
+            if packet is not FIN
+                ignore
+            if FIN
+                send ACK until timed wait is done
+                break
+        rcv_base += 1
+
+    receiver:
+        wait until FIN received
+        send ACK
+        rcv_base += 1
+        send FIN(send_base) (with timeout)
+        wait until ACK received
+        send_base += 1

@@ -62,6 +62,7 @@ namespace RDTP
         struct sockaddr_in _cli_addr;
         uint64_t _nextSeqNum;
         uint64_t _sendBase;
+        uint64_t _rcvBase;
         bool _established;
         // If the three-way handshake on the server's
         // behalf received a data packet instead of an
