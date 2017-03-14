@@ -38,8 +38,7 @@ namespace RDTP
                 case PacketType::SYNACK: _os << "SYNACK; "; break;
             }
 
-            _os << "SEQ: " << packet.GetSequenceNumber() << "; ";
-            _os << "ACK: " << packet.GetAcknowledgeNumber() << "; ";
+            _os << "SEQ/ACK: " << packet.GetNumber() << "; ";
             // TODO: fix window size
             _os << "WND: " << packet.GetWindowSize() << "; ";
 
