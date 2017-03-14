@@ -11,9 +11,8 @@ using namespace RDTP;
 
 /*
     Packet header layout:
-    Each row is 32-bits, 64-bits total.
-    SEQ (16-bit int), ACK (16-bit int)
-    [SYN, ACK, FIN] flags (1-bit each), 00000000000 (11-bits), WND (16-bit int)
+    Packet is 5 bytes in size.
+    NUM (16-bit int), [SYN, ACK, FIN] flags (1-bit each), 00000 (5-bits), WND (16-bit int)
 */
 
 namespace RDTP
@@ -27,8 +26,8 @@ namespace RDTP
         }
 
         // Construct packet using given parameters and data
-        Packet::Packet(PacketType type, uint16_t seq, uint16_t ack, uint16_t wnd, char* data, size_t dataLength) :
-            _packetType(type), _seq(seq), _ack(ack), _wnd(wnd), _valid(true)
+        Packet::Packet(PacketType type, uint16_t num, uint16_t wnd, char* data, size_t dataLength) :
+            _packetType(type), _num(num), _wnd(wnd), _valid(true)
         {
             assert(dataLength <= Constants::MaxPacketSize - Constants::HeaderSize);
             _rawData.reserve(Constants::HeaderSize + dataLength);
@@ -42,14 +41,9 @@ namespace RDTP
             return _packetType;
         }
 
-        uint16_t Packet::GetSequenceNumber() const
+        uint16_t Packet::GetNumber() const
         {
-            return _seq;
-        }
-
-        uint16_t Packet::GetAcknowledgeNumber() const
-        {
-            return _ack;
+            return _num;
         }
 
         uint16_t Packet::GetWindowSize() const
@@ -91,9 +85,8 @@ namespace RDTP
         void Packet::ParseRawData()
         {
             // Should have just used C-style casts
-            _seq = (static_cast<uint16_t>(static_cast<unsigned char>(_rawData[0])) << 16) | static_cast<uint16_t>(static_cast<unsigned char>(_rawData[1]));
-            _ack = (static_cast<uint16_t>(static_cast<unsigned char>(_rawData[2])) << 16) | static_cast<uint16_t>(static_cast<unsigned char>(_rawData[3]));
-            switch (static_cast<unsigned char>(_rawData[4]))
+            _num = (static_cast<uint16_t>(static_cast<unsigned char>(_rawData[0])) << 16) | static_cast<uint16_t>(static_cast<unsigned char>(_rawData[1]));
+            switch (static_cast<unsigned char>(_rawData[2]))
             {
             case 0b10000000:
                 _packetType = PacketType::SYN;
@@ -112,19 +105,15 @@ namespace RDTP
                 _valid = false;
                 break;
             }
-            _wnd = (static_cast<uint16_t>(static_cast<unsigned char>(_rawData[6])) << 16) | static_cast<uint16_t>(static_cast<unsigned char>(_rawData[7]));
+            _wnd = (static_cast<uint16_t>(static_cast<unsigned char>(_rawData[3])) << 16) | static_cast<uint16_t>(static_cast<unsigned char>(_rawData[4]));
         }
 
         void Packet::GenerateHeader()
         {
             char byte;
-            byte = static_cast<char>(_seq >> 8);
+            byte = static_cast<char>(_num >> 8);
             _rawData.push_back(byte);
-            byte = static_cast<char>(_seq);
-            _rawData.push_back(byte);
-            byte = static_cast<char>(_ack >> 8);
-            _rawData.push_back(byte);
-            byte = static_cast<char>(_ack);
+            byte = static_cast<char>(_num);
             _rawData.push_back(byte);
             switch (_packetType)
             {
@@ -143,7 +132,6 @@ namespace RDTP
                 byte = 0b11000000;
             }
             _rawData.push_back(byte);
-            _rawData.push_back(0);
             byte = static_cast<char>(_wnd >> 8);
             _rawData.push_back(byte);
             byte = static_cast<char>(_wnd);
