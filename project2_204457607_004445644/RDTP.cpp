@@ -284,7 +284,7 @@ namespace RDTP
 		_established = false;
 	}
 
-	// Server
+	// Client
 	void RDTPConnection::ReceiveFinish()
 	{
 		ssize_t len;
@@ -371,7 +371,7 @@ namespace RDTP
 		return;
 	}
 
-	// Client
+	// Server
 	void RDTPConnection::SendFinish()
 	{
 		ssize_t len;
