@@ -5,6 +5,7 @@ handshake:
         receive SYNACK
         set rcv_base = SYNACK # + 1
         send_base += 1
+        nextseqnum += 1
         send ACK
     server:
         pick send_base
@@ -12,6 +13,8 @@ handshake:
         rcv_base = SYN # + 1
         send SYNACK
         receive ACK
+        send_base += 1
+        nextseqnum += 1
 transmit:
     sender:
         int send_base
