@@ -85,7 +85,7 @@ namespace RDTP
         void Packet::ParseRawData()
         {
             // Should have just used C-style casts
-            _num = (static_cast<uint16_t>(static_cast<unsigned char>(_rawData[0])) << 16) | static_cast<uint16_t>(static_cast<unsigned char>(_rawData[1]));
+            _num = (static_cast<uint16_t>(static_cast<unsigned char>(_rawData[0])) << 8) | static_cast<uint16_t>(static_cast<unsigned char>(_rawData[1]));
             switch (static_cast<unsigned char>(_rawData[2]))
             {
             case 0b10000000:
@@ -105,7 +105,7 @@ namespace RDTP
                 _valid = false;
                 break;
             }
-            _wnd = (static_cast<uint16_t>(static_cast<unsigned char>(_rawData[3])) << 16) | static_cast<uint16_t>(static_cast<unsigned char>(_rawData[4]));
+            _wnd = (static_cast<uint16_t>(static_cast<unsigned char>(_rawData[3])) << 8) | static_cast<uint16_t>(static_cast<unsigned char>(_rawData[4]));
         }
 
         void Packet::GenerateHeader()
