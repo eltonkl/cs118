@@ -45,10 +45,6 @@ namespace RDTP
                 _os << " Retransmission;";
 
             _os << " Packet Size: " << packet.GetDataSize() << "; ";
-
-            if (packet.GetData().size()) {
-                _os << "Actual data: " << string(packet.GetData().data(), packet.GetDataSize());
-            } 
             _os << endl;
         }
 #else

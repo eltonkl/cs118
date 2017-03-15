@@ -104,6 +104,7 @@ int main(int argc, char** argv)
         cout << "Filename requested: " << filename << endl;
         
         ifstream ifs(filename, ios::binary);
+        noskipws(ifs);
         struct stat attr;
         int res = stat(filename.c_str(), &attr);
         

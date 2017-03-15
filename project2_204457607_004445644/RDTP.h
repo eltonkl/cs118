@@ -83,6 +83,7 @@ namespace RDTP
         // nullptr
         _Internals::Packet* _firstDataPacket;
         std::list<_Internals::Packet> _receivedPackets;
+        int _readOffset;
 
         template <typename Iterator>
         std::vector<char> GetDataForNextPacket(Iterator& begin, const Iterator& end, const size_t maxSize);

@@ -59,6 +59,7 @@ namespace RDTP
 	{
 		_established = true;
 		_firstDataPacket = nullptr;
+		_readOffset = 0;
 		if (_type == ApplicationType::Server)
 			ReceiveHandshake();
 		else //if (_type == ApplicationType::Client)
@@ -91,8 +92,27 @@ namespace RDTP
     void RDTPConnection::Read(std::basic_ostream<char>& os, size_t count)
     {
 		ostream_iterator<char> osi(os);
-
 		size_t read = 0;
+
+		while (!_receivedPackets.empty() && _rcvBase % Constants::MaxSequenceNumber == _receivedPackets.front().GetNumber())
+		{
+			auto data = _receivedPackets.front().GetData();
+			size_t bytes = min((size_t)distance(data.begin() + _readOffset, data.end()), count - read);
+			copy(data.begin() + _readOffset, data.begin() + _readOffset + bytes, osi);
+			read += bytes;
+			if (bytes + _readOffset == data.size())
+			{
+				_receivedPackets.pop_front();
+				_rcvBase += data.size();
+				_readOffset = 0;
+			}
+			else
+			{
+				_readOffset = bytes;
+				return;
+			}
+		}
+
 		ssize_t len;
 		char buf[Constants::MaxPacketSize];
 
@@ -117,6 +137,7 @@ namespace RDTP
 			bool rotatedFirst = false;
 			bool rotatedSecond = false;
 			uint64_t realRcvBase = _rcvBase % Constants::MaxSequenceNumber;
+			cout << "Read: " << read << endl;
 
 			if (packet.GetPacketType() != PacketType::NONE)
 				continue;
@@ -138,7 +159,6 @@ namespace RDTP
 				Packet ack = Packet(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
 				_printer.PrintInformation(_type, ack, false, false);
 				sendto(_sockfd, ack.GetRawData().data(), ack.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
-
 				auto it = _receivedPackets.begin();
 				while (it != _receivedPackets.end())
 				{
@@ -151,10 +171,20 @@ namespace RDTP
 				while (_rcvBase % Constants::MaxSequenceNumber == _receivedPackets.front().GetNumber())
 				{
 					auto data = _receivedPackets.front().GetData();
-					copy(data.begin(), data.end(), osi);
-					read += data.size();
-					_rcvBase += data.size();
-					_receivedPackets.pop_front();
+					size_t bytes = min((size_t)distance(data.begin(), data.end()), count - read);
+					copy(data.begin(), data.begin() + bytes, osi);
+					read += bytes;
+					if (bytes == data.size())
+					{
+						_receivedPackets.pop_front();
+						_rcvBase += data.size();
+						_readOffset = 0;
+					}
+					else
+					{
+						_readOffset = bytes;
+						return;
+					}
 				}
 			}
 			else
