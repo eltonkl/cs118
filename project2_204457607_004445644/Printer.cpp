@@ -39,7 +39,6 @@ namespace RDTP
             }
 
             _os << "SEQ/ACK: " << packet.GetNumber() << "; ";
-            // TODO: fix window size
             _os << "WND: " << packet.GetWindowSize() << "; ";
 
             if (retransmission)
