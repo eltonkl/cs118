@@ -22,7 +22,7 @@ transmit:
             for all packets that timed out
                 resend packet
                 reset timestamp
-            if nextseqnum < send_base + window_size
+            while nextseqnum < send_base + window_size
                 prepare new packet (size == min(max packet size, send_base + window_size - nextseqnum))
                 send packet
                 update nextseqnum += size
