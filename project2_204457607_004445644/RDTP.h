@@ -85,6 +85,8 @@ namespace RDTP
         std::list<std::pair<_Internals::Packet, uint64_t>> _receivedPackets;
         int _readOffset;
 
+        uint64_t _roundDown(uint64_t num);
+
         template <typename Iterator>
         std::vector<char> GetDataForNextPacket(Iterator& begin, const Iterator& end, const size_t maxSize);
 

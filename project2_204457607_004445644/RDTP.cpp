@@ -70,9 +70,9 @@ namespace RDTP
 	{
 		if (_firstDataPacket)
 			delete _firstDataPacket;
-		if (_type == ApplicationType::Server)
+		if (_type == ApplicationType::Server && _established)
 			SendFinish();
-		else //if (_type == ApplicationType::Client)
+		else if (_type == ApplicationType::Client && _established)
 			ReceiveFinish();
 	}
 
@@ -88,7 +88,7 @@ namespace RDTP
 		return *this;
     }
 
-	uint64_t roundDown(uint64_t num)
+	uint64_t RDTPConnection::_roundDown(uint64_t num)
 	{
 		int remainder = num % Constants::MaxSequenceNumber;
 		if (remainder == 0)
@@ -149,21 +149,15 @@ namespace RDTP
 			uint64_t actualSeqNumber;
 			if ((_rcvBase % Constants::MaxSequenceNumber) + Constants::WindowSize > Constants::MaxSequenceNumber)
 			{
-				if (packet.GetNumber() < (_rcvBase % Constants::MaxSequenceNumber))
+				if (packet.GetNumber() < (_rcvBase % Constants::MaxSequenceNumber) && packet.GetNumber() <= Constants::WindowSize)
 					actualSeqNumber = packet.GetNumber() + _rcvBase + (Constants::MaxSequenceNumber - (_rcvBase % Constants::MaxSequenceNumber));
 				else
-					actualSeqNumber = packet.GetNumber() + roundDown(_rcvBase);
+					actualSeqNumber = packet.GetNumber() + _roundDown(_rcvBase);
 			}
 			else
-				actualSeqNumber = packet.GetNumber() + roundDown(_rcvBase);
+				actualSeqNumber = packet.GetNumber() + _roundDown(_rcvBase);
 
-			if (actualSeqNumber <= _rcvBase - 1 && _rcvBase <= actualSeqNumber + Constants::WindowSize)
-			{
-				Packet ack = Packet(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
-				_printer.PrintInformation(_type, ack, false, false);
-				sendto(_sockfd, ack.GetRawData().data(), ack.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
-			}
-			else if (_rcvBase <= actualSeqNumber && actualSeqNumber <= _rcvBase + Constants::WindowSize - 1)
+			if (_rcvBase <= actualSeqNumber && actualSeqNumber <= _rcvBase + Constants::WindowSize - 1)
 			{
 				Packet ack = Packet(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
 				_printer.PrintInformation(_type, ack, false, false);
@@ -171,11 +165,12 @@ namespace RDTP
 				auto it = _receivedPackets.begin();
 				while (it != _receivedPackets.end())
 				{
-					if (it->second > actualSeqNumber)
+					if (it->second >= actualSeqNumber)
 						break;
 					it++;
 				}
-				_receivedPackets.emplace(it, packet, actualSeqNumber);
+				if (it == _receivedPackets.end() || (it != _receivedPackets.end() && it->second != actualSeqNumber))
+					_receivedPackets.emplace(it, packet, actualSeqNumber);
 
 				while (_rcvBase == _receivedPackets.front().second)
 				{
@@ -198,7 +193,9 @@ namespace RDTP
 			}
 			else
 			{
-				// Do nothing
+				Packet ack = Packet(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
+				_printer.PrintInformation(_type, ack, false, false);
+				sendto(_sockfd, ack.GetRawData().data(), ack.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
 			}
 		}
 		return;
@@ -234,12 +231,15 @@ namespace RDTP
 			{
 				if (packet.GetPacketType() == PacketType::FIN)
 				{
-					cerr << "Received unexpected FIN packet, sending ACK and giving up." << endl;
-					Packet packet2(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
+					cerr << "Received unexpected FIN packet, sending FIN and giving up." << endl;
+					Packet packet2(PacketType::FIN, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
 					sendto(_sockfd, packet2.GetRawData().data(), packet2.GetDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
+					_printer.PrintInformation(ApplicationType::Server, packet2, false, false);
 				}
 				else
+				{
 					cerr << "Expected SYN packet, got something else." << endl;
+				}
 				goto failure;
 			}
 		}
@@ -380,7 +380,11 @@ namespace RDTP
 					break;
 				else
 				{
-					cerr << "Expected FIN packet, got something else." << endl;
+					cerr << "Expected FIN packet, got something else. Sending ACK." << endl;
+					Packet packet2 = Packet(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
+
+					_printer.PrintInformation(ApplicationType::Client, packet2, false, false);
+					sendto(_sockfd, packet2.GetRawData().data(), packet2.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
 					continue;
 				}
 			}
@@ -404,20 +408,12 @@ namespace RDTP
 			Packet packet3 = Packet(PacketType::FIN, _nextSeqNum, Constants::WindowSize, nullptr, 0);
 			_nextSeqNum += 1;
 			bool retransmit = false;
-			seconds start = duration_cast<seconds>(system_clock::now().time_since_epoch());
 
 			if (!_setTimeout(_sockfd, 0, Constants::RetransmissionTimeoutValue_us))
 				goto perror_then_failure;
 
 			while (true)
 			{
-				seconds curTime = duration_cast<seconds>(system_clock::now().time_since_epoch());
-				if (abs(duration_cast<seconds>(curTime - start).count()) >= (int)Constants::MaximumFinishRetryTimeValue)
-				{
-					cerr << "Unable to properly finish RDTP connection." << endl;
-					break;
-				}
-
 				_printer.PrintInformation(ApplicationType::Client, packet3, retransmit, false);
 				sendto(_sockfd, packet3.GetRawData().data(), packet3.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
 
