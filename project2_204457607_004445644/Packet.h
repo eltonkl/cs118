@@ -28,6 +28,7 @@ namespace RDTP
         public:
             static Packet FromRawData(char* rawData, size_t rawDataLength);
             Packet(PacketType type, uint16_t num, uint16_t wnd, char* data, size_t dataLength);
+            Packet();
 
             PacketType GetPacketType() const;
             uint16_t GetNumber() const;

@@ -89,48 +89,46 @@ namespace RDTP
     {
 		ostream_iterator<char> osi(os);
 
+		size_t read = 0;
 		ssize_t len;
 		char buf[Constants::MaxPacketSize];
 
-		if (_type == ApplicationType::Client) {
-			if (!_setTimeout(_sockfd, 0, 0))
-				goto perror_then_failure;
-			
-			len = recv(_sockfd, buf, Constants::MaxPacketSize, 0);
-			if (len > 0) {
-				// Client got packet from Server
-				Packet packet = Packet::FromRawData(buf, len);
-				_printer.PrintInformation(ApplicationType::Client, packet, false, true);
-
-				// TODO: handle count
-				vector<char> data = packet.GetData();
-				copy(data.begin(), data.end(), osi);
-
-
-				// send ACK back
-				{
-					// TODO: update recv_base?
-
-					// TODO: what's the SEQ in SR's ACK packet?
-					Packet packet2 = Packet(PacketType::ACK, 404, packet.GetAcknowledgeNumber(), Constants::WindowSize, nullptr, 0);
-					_printer.PrintInformation(ApplicationType::Client, packet2, false, false);
-			
-					// hope for the best :)
-					write(_sockfd, packet2.GetRawData().data(), packet2.GetRawDataSize());
-				}
-
-
-			} else {
-				cerr << "recv in client failed." << endl;
-				goto perror_then_failure;
+		if (!_setTimeout(_sockfd, 0, 0))
+			goto perror_then_failure;
+		while (read < count)
+		{
+			Packet packet;
+			if (_firstDataPacket)
+			{
+				packet = *_firstDataPacket;
+				delete _firstDataPacket;
+				_firstDataPacket = nullptr;
 			}
+			else
+			{
+				len = recvfrom(_sockfd, buf, Constants::MaxPacketSize, 0, (struct sockaddr*)&_cli_addr, &_cli_len);
+				packet = Packet::FromRawData(buf, len);
+			}
+			
+			bool rotated = false;
+			uint64_t realRcvBase = _rcvBase % Constants::MaxSequenceNumber;
+			if (realRcvBase + Constants::WindowSize > Constants::MaxSequenceNumber)
+				rotated = true;
+			if ((rotated && packet.GetNumber() <= (_rcvBase + Constants::WindowSize - 1) % Constants::MaxSequenceNumber)
+				|| (!rotated && (_rcvBase - Constants::WindowSize) <= packet.GetNumber() && packet.GetNumber() <= _rcvBase - 1))
+			{
+				Packet ack = Packet(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
+				
+			}
+			else if ()
+			{
 
-		} else {
-			// _type == ApplicationType::Server
-			// TODO: Server Read
-
+			}
+			else
+			{
+				// Do nothing
+			}
 		}
-
 	perror_then_failure:
 		_Error("RDTP Read failed");
     }

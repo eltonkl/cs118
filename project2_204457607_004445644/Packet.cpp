@@ -36,6 +36,8 @@ namespace RDTP
                 _rawData.insert(_rawData.begin() + Constants::HeaderSize, data, data + dataLength);
         }
 
+        Packet::Packet() : _valid(false) {}
+
         PacketType Packet::GetPacketType() const
         {
             return _packetType;
