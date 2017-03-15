@@ -487,7 +487,7 @@ namespace RDTP
 
 			if (packet2.GetPacketType() == PacketType::ACK)
 			{
-				if (packet2.GetNumber() != _sendBase % Constants::MaxSequenceNumber)
+				if (packet2.GetNumber() != packet.GetNumber())
 					continue;
 				else
 					break;
