@@ -43,7 +43,7 @@ namespace RDTP
 	const uint32_t Constants::MaxPacketSize = 1024;
 	const uint32_t Constants::MaxSequenceNumber = 30720;
 	const uint32_t Constants::WindowSize = 5120;
-	const uint32_t Constants::HeaderSize = 8;
+	const uint32_t Constants::HeaderSize = 5;
 	// Milliseconds
 	const uint32_t Constants::RetransmissionTimeoutValue = 500;
 	const uint32_t Constants::RetransmissionTimeoutValue_us = Constants::RetransmissionTimeoutValue * 1000;
@@ -113,20 +113,46 @@ namespace RDTP
 				packet = Packet::FromRawData(buf, len);
 			}
 			
-			bool rotated = false;
+			bool rotatedFirst = false;
+			bool rotatedSecond = false;
 			uint64_t realRcvBase = _rcvBase % Constants::MaxSequenceNumber;
-			if (realRcvBase + Constants::WindowSize > Constants::MaxSequenceNumber)
-				rotated = true;
-			if ((rotated && packet.GetNumber() <= (_rcvBase + Constants::WindowSize - 1) % Constants::MaxSequenceNumber)
-				|| (!rotated && (_rcvBase - Constants::WindowSize) <= packet.GetNumber() && packet.GetNumber() <= _rcvBase - 1))
+
+			if (packet.GetPacketType() != PacketType::NONE)
+				continue;
+			if ((int64_t)(_rcvBase % Constants::MaxSequenceNumber) - Constants::WindowSize < 0)
+				rotatedFirst = true;
+			if ((realRcvBase + Constants::WindowSize) > Constants::MaxSequenceNumber)
+				rotatedSecond = true;
+
+			if ((rotatedFirst && ((((_rcvBase - Constants::WindowSize) % Constants::MaxSequenceNumber <= packet.GetNumber() && packet.GetNumber() <= Constants::MaxSequenceNumber)) || (packet.GetNumber() <= (_rcvBase % Constants::MaxSequenceNumber) - 1)))
+				|| (!rotatedFirst && (_rcvBase - Constants::WindowSize) <= packet.GetNumber() && packet.GetNumber() <= _rcvBase - 1))
 			{
 				Packet ack = Packet(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
-				
+				sendto(_sockfd, ack.GetRawData().data(), ack.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
 			}
-			// else if ()
-			// {
+			else if ((rotatedSecond && ((_rcvBase <= packet.GetNumber() && packet.GetNumber() <= Constants::MaxSequenceNumber) || packet.GetNumber() <= (_rcvBase + Constants::WindowSize - 1) % Constants::MaxSequenceNumber))
+			     || (!rotatedSecond && _rcvBase <= packet.GetNumber() && packet.GetNumber() <= _rcvBase + Constants::WindowSize - 1))
+			{
+				Packet ack = Packet(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
+				sendto(_sockfd, ack.GetRawData().data(), ack.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
 
-			// }
+				auto it = _receivedPackets.begin();
+				while (it != _receivedPackets.end())
+				{
+					if (it->GetNumber() > packet.GetNumber())
+						break;
+					it++;
+				}
+				_receivedPackets.insert(it, packet);
+
+				while (_rcvBase % Constants::MaxSequenceNumber == _receivedPackets.front().GetNumber())
+				{
+					auto data = _receivedPackets.front().GetData();
+					copy(data.begin(), data.end(), osi);
+					_rcvBase += data.size();
+					_receivedPackets.pop_front();
+				}
+			}
 			else
 			{
 				// Do nothing
