@@ -101,8 +101,10 @@ namespace RDTP
                 break;
             case 0b00000000:
                 _packetType = PacketType::NONE;
+                break;
             case 0b11000000:
                 _packetType = PacketType::SYNACK;
+                break;
             default:
                 _valid = false;
                 break;
@@ -130,8 +132,10 @@ namespace RDTP
                 break;
             case PacketType::NONE:
                 byte = 0b00000000;
+                break;
             case PacketType::SYNACK:
                 byte = 0b11000000;
+                break;
             }
             _rawData.push_back(byte);
             byte = static_cast<char>(_wnd >> 8);

@@ -98,7 +98,7 @@ namespace RDTP
                 packetTimestamps[realPacketNum] = --temp;
 
                 // send packet
-                _printer.PrintInformation(_type, packet, true, false);
+                _printer.PrintInformation(_type, packet, false, false);
                 if (_type == ApplicationType::Client) {
                     write(_sockfd, packet.GetRawData().data(), packet.GetRawDataSize());
                 } else {
