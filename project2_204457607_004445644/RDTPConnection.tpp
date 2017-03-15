@@ -90,7 +90,7 @@ namespace RDTP
 
                 uint16_t realPacketNum = _sendBase % Constants::MaxSequenceNumber;
                 Packet packet = Packet(PacketType::NONE, realPacketNum, Constants::WindowSize, data.data(), data.size());
-                
+
                 // update data structures
                 packetSizes[realPacketNum] = data.size();
                 timestamps.emplace_back(packet, duration_cast<milliseconds>(system_clock::now().time_since_epoch()));
@@ -132,7 +132,8 @@ namespace RDTP
                         }
 
                         if ((!rotated && realSendBase <= packet.GetNumber() && packet.GetNumber() <= realSendBase + Constants::WindowSize) 
-                            || (rotated && packet.GetNumber() <= (realSendBase + Constants::WindowSize) % Constants::MaxSequenceNumber))
+                            || (rotated && packet.GetNumber() <= (realSendBase + Constants::WindowSize) % Constants::MaxSequenceNumber)
+                            || (rotated && packet.GetNumber() >= realSendBase && packet.GetNumber() <= Constants::MaxSequenceNumber))
                         {
                             // send_base <= ACK <= send_base + window_size
                             uint16_t ackNum = packet.GetNumber();
