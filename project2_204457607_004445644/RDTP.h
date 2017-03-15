@@ -1,12 +1,18 @@
 #pragma once
 
 #include <vector>
+#include <chrono>
 #include <istream>
 #include <ostream>
 #include <utility>
 #include <stdint.h>
 #include <netinet/in.h>
 #include <sys/socket.h>
+#include <unordered_map>
+#include <list>
+#include <queue>
+#include <vector>
+#include <algorithm>
 
 #include "Packet.h"
 #include "Printer.h"
@@ -71,7 +77,7 @@ namespace RDTP
         _Internals::Packet* _firstDataPacket;
 
         template <typename Iterator>
-        std::vector<char> GetDataForNextPacket(Iterator& begin, const Iterator& end);
+        std::vector<char> GetDataForNextPacket(Iterator& begin, const Iterator& end, const size_t maxSize);
 
         void ReceiveHandshake();
         void InitiateHandshake();
