@@ -43,6 +43,12 @@ namespace RDTP
         Client
     };
 
+    namespace _Internals
+    {
+        void _Error(std::string msg);
+        bool _setTimeout(int sockfd, int sec, int microsec);
+    }
+
     // Assume things don't fail
     class RDTPConnection
     {
@@ -75,7 +81,7 @@ namespace RDTP
         // ACK (aka the ACK dropped), this will not be
         // nullptr
         _Internals::Packet* _firstDataPacket;
-        std::list<Packet> _receivedPackets;
+        std::list<_Internals::Packet> _receivedPackets;
 
         template <typename Iterator>
         std::vector<char> GetDataForNextPacket(Iterator& begin, const Iterator& end, const size_t maxSize);

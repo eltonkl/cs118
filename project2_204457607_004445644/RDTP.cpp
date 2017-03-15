@@ -18,22 +18,25 @@ using namespace RDTP::_Internals;
 
 namespace RDTP
 {
-	// Print error message and then exit
-	void _Error(string msg)
-	{
-		perror(msg.c_str());
-	}
+	namespace _Internals
+    {
+		// Print error message and then exit
+		void _Error(string msg)
+		{
+			perror(msg.c_str());
+		}
+		
+		bool _setTimeout(int sockfd, int sec, int microsec)
+		{
+			struct timeval tv;
+			tv.tv_sec = sec;
+			tv.tv_usec = microsec;
 
-	bool _setTimeout(int sockfd, int sec, int microsec)
-	{
-		struct timeval tv;
-		tv.tv_sec = sec;
-		tv.tv_usec = microsec;
-
-		bool result = setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == 0;
-		if (!result)
-			cerr << "Failed to set receive timeout value." << endl;
-		return result;
+			bool result = setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == 0;
+			if (!result)
+				cerr << "Failed to set receive timeout value." << endl;
+			return result;
+		}
 	}
 
 	// Bytes
@@ -120,10 +123,10 @@ namespace RDTP
 				Packet ack = Packet(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
 				
 			}
-			else if ()
-			{
+			// else if ()
+			// {
 
-			}
+			// }
 			else
 			{
 				// Do nothing

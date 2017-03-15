@@ -31,23 +31,6 @@ namespace RDTP
                 return a > b;
             }
         };
-
-        void _Error(std::string msg)
-        {
-            perror(msg.c_str());
-        }
-
-        bool _setTimeout(int sockfd, int sec, int microsec)
-        {
-            struct timeval tv;
-            tv.tv_sec = sec;
-            tv.tv_usec = microsec;
-
-            bool result = setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &tv, sizeof(tv)) == 0;
-            if (!result)
-                std::cerr << "Failed to set receive timeout value." << std::endl;
-            return result;
-        }
     }
     
     template <typename Iterator>
@@ -85,7 +68,7 @@ namespace RDTP
                         write(_sockfd, it->first.GetRawData().data(), it->first.GetRawDataSize());
                     } else {
                         // _type == ApplicationType::Server
-                        sendto(_sockfd, it->first.GetRawData().data(), it->first.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, &_cli_len);
+                        sendto(_sockfd, it->first.GetRawData().data(), it->first.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
                     }
                 }
             }
@@ -120,7 +103,7 @@ namespace RDTP
                     write(_sockfd, packet.GetRawData().data(), packet.GetRawDataSize());
                 } else {
                     // _type == ApplicationType::Server
-                    sendto(_sockfd, packet.GetRawData().data(), packet.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, &_cli_len);
+                    sendto(_sockfd, packet.GetRawData().data(), packet.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
                 }
 
                 _nextSeqNum += data.size();
