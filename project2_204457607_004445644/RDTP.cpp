@@ -111,6 +111,7 @@ namespace RDTP
 			{
 				len = recvfrom(_sockfd, buf, Constants::MaxPacketSize, 0, (struct sockaddr*)&_cli_addr, &_cli_len);
 				packet = Packet::FromRawData(buf, len);
+				_printer.PrintInformation(_type, packet, false, true);
 			}
 			
 			bool rotatedFirst = false;
@@ -128,12 +129,14 @@ namespace RDTP
 				|| (!rotatedFirst && (_rcvBase - Constants::WindowSize) <= packet.GetNumber() && packet.GetNumber() <= _rcvBase - 1))
 			{
 				Packet ack = Packet(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
+				_printer.PrintInformation(_type, ack, false, false);
 				sendto(_sockfd, ack.GetRawData().data(), ack.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
 			}
 			else if ((rotatedSecond && ((_rcvBase <= packet.GetNumber() && packet.GetNumber() <= Constants::MaxSequenceNumber) || packet.GetNumber() <= (_rcvBase + Constants::WindowSize - 1) % Constants::MaxSequenceNumber))
 			     || (!rotatedSecond && _rcvBase <= packet.GetNumber() && packet.GetNumber() <= _rcvBase + Constants::WindowSize - 1))
 			{
 				Packet ack = Packet(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
+				_printer.PrintInformation(_type, ack, false, false);
 				sendto(_sockfd, ack.GetRawData().data(), ack.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
 
 				auto it = _receivedPackets.begin();
@@ -149,6 +152,7 @@ namespace RDTP
 				{
 					auto data = _receivedPackets.front().GetData();
 					copy(data.begin(), data.end(), osi);
+					read += data.size();
 					_rcvBase += data.size();
 					_receivedPackets.pop_front();
 				}
