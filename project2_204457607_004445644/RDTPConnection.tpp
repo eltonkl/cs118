@@ -2,22 +2,11 @@ namespace RDTP
 {
     template <typename Iterator>
     std::vector<char> RDTPConnection::GetDataForNextPacket(Iterator& begin, const Iterator& end, const size_t maxSize) {
+        size_t len = 0;
+        std::vector<char> data;
 
-        // maxDataSize is either from the passed in param or Constants
-        size_t maxDataSize = std::min<size_t>(maxSize, Constants::MaxPacketSize - Constants::HeaderSize);
-        size_t vSize;
-        if (std::distance(begin, end) >= (int)maxDataSize) {
-            vSize = maxDataSize;
-        } else {
-            vSize = std::distance(begin, end);
-        }
-
-        std::vector<char> data(vSize);
-        std::vector<char>::iterator it = data.begin();
-
-        while (vSize--) {
-            *it++ = *begin++;
-        }
+        while (begin != end && len++ < maxSize)
+            data.push_back(*begin++);
 
         return data;
     }
