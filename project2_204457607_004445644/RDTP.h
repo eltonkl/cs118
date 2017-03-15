@@ -13,6 +13,7 @@
 #include <queue>
 #include <vector>
 #include <algorithm>
+#include <unistd.h>
 
 #include "Packet.h"
 #include "Printer.h"

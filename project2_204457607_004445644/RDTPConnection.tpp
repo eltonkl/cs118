@@ -153,7 +153,7 @@ namespace RDTP
             //    send_base = send_base + size of packet(minheap.top())
             //    delete packet with minheap.top() == ACK from table
             //    update smallestReceivedACK from minheap 
-            while (_sendBase % Constants::MaxSequenceNumber == minACK.top()) {
+            while (!minACK.empty() && _sendBase % Constants::MaxSequenceNumber == minACK.top()) {
                 _sendBase += packetSizes[minACK.top()];
                 packetSizes.erase(minACK.top());
                 minACK.pop();
