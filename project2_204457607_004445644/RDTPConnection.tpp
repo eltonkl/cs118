@@ -3,9 +3,10 @@ namespace RDTP
     template <typename Iterator>
     std::vector<char> RDTPConnection::GetDataForNextPacket(Iterator& begin, const Iterator& end, const size_t maxSize) {
         size_t len = 0;
+        size_t maxDataSize = std::min<size_t>(maxSize, Constants::MaxPacketSize - Constants::HeaderSize);
         std::vector<char> data;
 
-        while (begin != end && len++ < maxSize)
+        while (begin != end && len++ < maxDataSize)
             data.push_back(*begin++);
 
         return data;
