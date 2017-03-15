@@ -89,25 +89,27 @@ namespace RDTP
                     break;
                 }
 
-                uint16_t realPacketNum = _sendBase % Constants::MaxSequenceNumber;
-                Packet packet = Packet(PacketType::NONE, realPacketNum, Constants::WindowSize, data.data(), data.size());
+                if (data.size() != 0) {
+                    uint16_t realPacketNum = _sendBase % Constants::MaxSequenceNumber;
+                    Packet packet = Packet(PacketType::NONE, realPacketNum, Constants::WindowSize, data.data(), data.size());
 
-                // update data structures
-                packetSizes[realPacketNum] = data.size();
-                timestamps.emplace_back(packet, duration_cast<milliseconds>(system_clock::now().time_since_epoch()));
-                list<pair<Packet, milliseconds>>::iterator temp = timestamps.end();
-                packetTimestamps[realPacketNum] = --temp;
+                    // update data structures
+                    packetSizes[realPacketNum] = data.size();
+                    timestamps.emplace_back(packet, duration_cast<milliseconds>(system_clock::now().time_since_epoch()));
+                    list<pair<Packet, milliseconds>>::iterator temp = timestamps.end();
+                    packetTimestamps[realPacketNum] = --temp;
 
-                // send packet
-                _printer.PrintInformation(_type, packet, false, false);
-                if (_type == ApplicationType::Client) {
-                    write(_sockfd, packet.GetRawData().data(), packet.GetRawDataSize());
-                } else {
-                    // _type == ApplicationType::Server
-                    sendto(_sockfd, packet.GetRawData().data(), packet.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
+                    // send packet
+                    _printer.PrintInformation(_type, packet, false, false);
+                    if (_type == ApplicationType::Client) {
+                        write(_sockfd, packet.GetRawData().data(), packet.GetRawDataSize());
+                    } else {
+                        // _type == ApplicationType::Server
+                        sendto(_sockfd, packet.GetRawData().data(), packet.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
+                    }
+
+                    _nextSeqNum += data.size();
                 }
-
-                _nextSeqNum += data.size();
             }
 
             // *****************************
@@ -124,6 +126,7 @@ namespace RDTP
 
                     uint16_t realSendBase = _sendBase % Constants::MaxSequenceNumber;
                     if (packet.GetPacketType() == PacketType::ACK) {
+
                         // check validity of ACK #
                         bool rotated = false;
                         if (realSendBase + Constants::WindowSize > Constants::MaxSequenceNumber) {
@@ -135,6 +138,7 @@ namespace RDTP
                             || (rotated && packet.GetNumber() >= realSendBase && packet.GetNumber() <= Constants::MaxSequenceNumber))
                         {
                             // send_base <= ACK <= send_base + window_size
+                            _printer.PrintInformation(_type, packet, false, true);
                             uint16_t ackNum = packet.GetNumber();
                             minACK.push(ackNum);
                             timestamps.erase(packetTimestamps[ackNum]);
