@@ -153,6 +153,7 @@ namespace RDTP
                 minACK.pop();
             }
         }
+        return;
         perror_then_failure:
 		    _Internals::_Error("_setTimeout failed rip");
     }
