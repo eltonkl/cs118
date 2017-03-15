@@ -17,7 +17,7 @@ namespace RDTP
         class Compare
         {
         public:
-            bool operator() (uint16_t a, uint16_t b) {
+            bool operator() (uint64_t a, uint64_t b) {
                 return a > b;
             }
         };
@@ -34,17 +34,17 @@ namespace RDTP
         ssize_t len;
 		char buf[Constants::MaxPacketSize];
 
-        unordered_map<uint16_t, size_t> packetSizes;    // _seq -> packet size
+        unordered_map<uint64_t, size_t> packetSizes;    // _seq -> packet size
         list<pair<Packet, milliseconds>> timestamps;    // list of Packet and their respective timestamps
-        unordered_map<uint16_t, list<pair<Packet, milliseconds>>::iterator> packetTimestamps; // _seq -> above
-        priority_queue<uint16_t, vector<uint16_t>, _Internals::Compare> minACK;
+        unordered_map<uint64_t, list<pair<Packet, milliseconds>>::iterator> packetTimestamps; // _seq -> above
+        priority_queue<uint64_t, vector<uint64_t>, _Internals::Compare> minACK;
         if (!_setTimeout(_sockfd, 0, Constants::RetransmissionTimeoutValue_us))
             goto perror_then_failure;
 
         while (true) {
             // *****************************
             // Step 1
-            // for all packets that timed out
+            // for the earliest packet that timed out
             //     resend packet
             //     reset timestamp
             milliseconds curTime;
@@ -71,6 +71,7 @@ namespace RDTP
             //     send packet
             //     update nextseqnum += size
             bool breakOut = false;
+            //cout << "nextseqnum: " << _nextSeqNum << endl;
             while (_nextSeqNum < _sendBase + Constants::WindowSize) {
                 vector<char> data = GetDataForNextPacket(begin, end, (size_t) (_sendBase + Constants::WindowSize - _nextSeqNum));
 
@@ -85,10 +86,10 @@ namespace RDTP
                     Packet packet = Packet(PacketType::NONE, realPacketNum, Constants::WindowSize, data.data(), data.size());
 
                     // update data structures
-                    packetSizes[realPacketNum] = data.size();
+                    packetSizes[_nextSeqNum] = data.size();
                     timestamps.emplace_back(packet, duration_cast<milliseconds>(system_clock::now().time_since_epoch()));
                     list<pair<Packet, milliseconds>>::iterator temp = timestamps.end();
-                    packetTimestamps[realPacketNum] = --temp;
+                    packetTimestamps[_nextSeqNum] = --temp;
 
                     // send packet
                     _printer.PrintInformation(_type, packet, false, false);
@@ -118,28 +119,41 @@ namespace RDTP
                 if (len > 0) {
                     Packet packet = Packet::FromRawData(buf, len);
 
-                    uint16_t realSendBase = _sendBase % Constants::MaxSequenceNumber;
                     if (packet.GetPacketType() == PacketType::ACK) {
-
-                        // check validity of ACK #
-                        bool rotated = false;
-                        if (realSendBase + Constants::WindowSize > Constants::MaxSequenceNumber) {
-                            rotated = true;
+                        uint64_t actualAckNumber;
+                        if ((_sendBase % Constants::MaxSequenceNumber) + Constants::WindowSize > Constants::MaxSequenceNumber)
+                        {
+                            if (packet.GetNumber() < (_sendBase % Constants::MaxSequenceNumber) && packet.GetNumber() <= Constants::WindowSize)
+                                actualAckNumber = packet.GetNumber() + _sendBase + (Constants::MaxSequenceNumber - (_sendBase % Constants::MaxSequenceNumber));
+                            else
+                                actualAckNumber = packet.GetNumber() + _roundDown(_sendBase);
                         }
-
-                        if ((!rotated && realSendBase <= packet.GetNumber() && packet.GetNumber() <= realSendBase + Constants::WindowSize) 
-                            || (rotated && packet.GetNumber() <= (realSendBase + Constants::WindowSize) % Constants::MaxSequenceNumber)
-                            || (rotated && packet.GetNumber() >= realSendBase && packet.GetNumber() <= Constants::MaxSequenceNumber))
+                        else
+                            actualAckNumber = packet.GetNumber() + _roundDown(_sendBase);
+                        // check validity of ACK #
+                        //cout << actualAckNumber << " " << "<- actual ack || sendBase -> " << _sendBase << endl;
+                        if (_sendBase <= actualAckNumber && actualAckNumber <= _sendBase + Constants::WindowSize)
                         {
                             // send_base <= ACK <= send_base + window_size
                             _printer.PrintInformation(_type, packet, false, true);
-                            uint16_t ackNum = packet.GetNumber();
-                            minACK.push(ackNum);
-                            timestamps.erase(packetTimestamps[ackNum]);
-                            packetTimestamps.erase(ackNum);
+                            minACK.push(actualAckNumber);
+                            timestamps.erase(packetTimestamps[actualAckNumber]);
+                            packetTimestamps.erase(actualAckNumber);
+                        }
+                    }
+                    else {
+                        _printer.PrintInformation(_type, packet, false, true);
+                        uint16_t ackNum = packet.GetNumber();
+                        if (ackNum == _rcvBase % Constants::MaxSequenceNumber)
+                        {
+                            _firstDataPacket = new Packet(packet);
+                            return;
                         }
                     }
                 }
+                // if (!minACK.empty())
+                //     cout << "minACK: " << minACK.top() << " ";
+                // cout << "_sendBase: " << _sendBase;
                 // else {
                     // timeout
                 //    break;
@@ -152,11 +166,13 @@ namespace RDTP
             //    send_base = send_base + size of packet(minheap.top())
             //    delete packet with minheap.top() == ACK from table
             //    update smallestReceivedACK from minheap 
-            while (!minACK.empty() && _sendBase % Constants::MaxSequenceNumber == minACK.top()) {
+            while (!minACK.empty() && _sendBase == minACK.top()) {
+                // cout << " minACK.top(): " << minACK.top();
                 _sendBase += packetSizes[minACK.top()];
                 packetSizes.erase(minACK.top());
                 minACK.pop();
             }
+            // cout << endl;
         }
         return;
         perror_then_failure:

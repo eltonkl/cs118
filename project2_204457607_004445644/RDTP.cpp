@@ -129,6 +129,7 @@ namespace RDTP
 			goto perror_then_failure;
 		while (read < count)
 		{
+			// cout << _rcvBase << "<-- rcvBase" << endl;
 			Packet packet;
 			if (_firstDataPacket)
 			{
@@ -219,34 +220,41 @@ namespace RDTP
 		// LISTEN
 		if (!_setTimeout(_sockfd, 0, 0))
 			goto perror_then_failure;
-		len = recvfrom(_sockfd, buf, Constants::MaxPacketSize, 0, (struct sockaddr*)&_cli_addr, &_cli_len);
-		if (len > 0)
+		while (true)
 		{
-			Packet packet = Packet::FromRawData(buf, len);
-			_printer.PrintInformation(ApplicationType::Server, packet, false, true);
-		
-			if (packet.GetPacketType() == PacketType::SYN)
-				_rcvBase = packet.GetNumber() + 1;
-			else
+			len = recvfrom(_sockfd, buf, Constants::MaxPacketSize, 0, (struct sockaddr*)&_cli_addr, &_cli_len);
+			if (len > 0)
 			{
-				if (packet.GetPacketType() == PacketType::FIN)
+				Packet packet = Packet::FromRawData(buf, len);
+				_printer.PrintInformation(ApplicationType::Server, packet, false, true);
+
+				if (packet.GetPacketType() == PacketType::SYN)
 				{
-					cerr << "Received unexpected FIN packet, sending FIN and giving up." << endl;
-					Packet packet2(PacketType::FIN, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
-					sendto(_sockfd, packet2.GetRawData().data(), packet2.GetDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
-					_printer.PrintInformation(ApplicationType::Server, packet2, false, false);
+					_rcvBase = packet.GetNumber() + 1;
+					break;
 				}
 				else
 				{
-					cerr << "Expected SYN packet, got something else." << endl;
+					if (packet.GetPacketType() == PacketType::FIN)
+					{
+						cout << "Received unexpected FIN packet, sending ACK." << endl;
+						Packet packet2(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
+						sendto(_sockfd, packet2.GetRawData().data(), packet2.GetDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
+						_printer.PrintInformation(ApplicationType::Server, packet2, false, false);
+						continue;
+					}
+					else
+					{
+						cout << "Expected SYN packet, and got something that is not a FIN. Giving up." << endl;
+						goto failure;
+					}
 				}
-				goto failure;
 			}
-		}
-		else
-		{
-			cerr << "recvfrom failed." << endl;
-			goto perror_then_failure;
+			else
+			{
+				cerr << "recvfrom failed." << endl;
+				goto perror_then_failure;
+			}
 		}
 
 		// SYN_RCVD
@@ -334,7 +342,7 @@ namespace RDTP
 			}
 			else
 			{
-				cerr << "Received unexpected packet, expected SYNACK." << endl;
+				cout << "Received unexpected packet, expected SYNACK." << endl;
 				goto failure;
 			}
 		}
@@ -380,7 +388,7 @@ namespace RDTP
 					break;
 				else
 				{
-					cerr << "Expected FIN packet, got something else. Sending ACK." << endl;
+					cout << "Expected FIN packet, got something else. Sending ACK." << endl;
 					Packet packet2 = Packet(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
 
 					_printer.PrintInformation(ApplicationType::Client, packet2, false, false);
@@ -408,34 +416,44 @@ namespace RDTP
 			Packet packet3 = Packet(PacketType::FIN, _nextSeqNum, Constants::WindowSize, nullptr, 0);
 			_nextSeqNum += 1;
 			bool retransmit = false;
+			// seconds start = duration_cast<seconds>(system_clock::now().time_since_epoch());
 
 			if (!_setTimeout(_sockfd, 0, Constants::RetransmissionTimeoutValue_us))
-				goto perror_then_failure;
+ 				goto perror_then_failure;
 
 			while (true)
 			{
-				_printer.PrintInformation(ApplicationType::Client, packet3, retransmit, false);
-				sendto(_sockfd, packet3.GetRawData().data(), packet3.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
+				// seconds curTime = duration_cast<seconds>(system_clock::now().time_since_epoch());
+				// if (abs(duration_cast<seconds>(curTime - start).count()) >= (int)Constants::MaximumFinishRetryTimeValue)
+				// {
+				// 	cout << "Unable to properly finish RDTP connection." << endl;
+				// 	break;
+				// }
 
-				len = recvfrom(_sockfd, buf, Constants::MaxPacketSize, 0, (struct sockaddr*)&_cli_addr, &_cli_len);
+				_printer.PrintInformation(ApplicationType::Client, packet3, retransmit, false);
+				write(_sockfd, packet3.GetRawData().data(), packet3.GetRawDataSize());
+
+				len = read(_sockfd, buf, Constants::MaxPacketSize);
 				if (len > 0)
 				{
-					Packet packet = Packet::FromRawData(buf, len);
-					_printer.PrintInformation(ApplicationType::Client, packet, false, true);
+					Packet packet4 = Packet::FromRawData(buf, len);
+					_printer.PrintInformation(ApplicationType::Client, packet4, false, true);
 
-					if (packet.GetPacketType() == PacketType::FIN) // Skip sending ACK, just send FIN
+					if (packet4.GetPacketType() == PacketType::FIN) // Skip sending ACK, just send FIN
 					{
 						retransmit = true;
 						continue;
 					}
-					else if (packet.GetPacketType() != PacketType::ACK)
+					else if (packet4.GetPacketType() != PacketType::ACK)
 					{
-						cerr << "Received unexpected packet, expected ACK." << endl;
+						cout << "Received unexpected packet, expected ACK." << endl;
 						continue;
 					}
 					else
 						break;
 				}
+				else if (len == 0)
+					break;
 				else
 				{
 					retransmit = true;
@@ -497,7 +515,7 @@ namespace RDTP
 			}
 			else
 			{
-				cerr << "Received unexpected packet, expected ACK or FIN." << endl;
+				cout << "Received unexpected packet, expected ACK or FIN." << endl;
 				continue;
 			}
 		}
@@ -537,7 +555,7 @@ namespace RDTP
 
 					if (packet.GetPacketType() != PacketType::FIN)
 					{
-						cerr << "Received unexpected packet, expected FIN." << endl;
+						cout << "Received unexpected packet, expected FIN." << endl;
 						continue;
 					}
 					else
