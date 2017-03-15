@@ -162,6 +162,7 @@ namespace RDTP
 				// Do nothing
 			}
 		}
+		return;
 	perror_then_failure:
 		_Error("RDTP Read failed");
     }
