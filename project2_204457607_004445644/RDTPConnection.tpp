@@ -48,7 +48,8 @@ namespace RDTP
         list<pair<Packet, milliseconds>> timestamps;    // list of Packet and their respective timestamps
         unordered_map<uint16_t, list<pair<Packet, milliseconds>>::iterator> packetTimestamps; // _seq -> above
         priority_queue<uint16_t, vector<uint16_t>, _Internals::Compare> minACK;
-
+        if (!_setTimeout(_sockfd, 0, Constants::RetransmissionTimeoutValue_us))
+            goto perror_then_failure;
 
         while (true) {
             // *****************************
@@ -115,8 +116,6 @@ namespace RDTP
             //     if send_base <= ACK <= send_base + window_size
             //         add to minheap
             //         delete packet(ACK#) from list
-            if (!_setTimeout(_sockfd, 0, Constants::RetransmissionTimeoutValue_us))
-			    goto perror_then_failure;
             while (true) {
                 len = recvfrom(_sockfd, buf, Constants::MaxPacketSize, 0, (struct sockaddr*)&_cli_addr, &_cli_len);
 
@@ -146,19 +145,18 @@ namespace RDTP
                     // timeout
                     break;
                 }
+            }
 
-                // *****************************
-                // Step 4
-                // while minheap.top() == send_base
-                //    send_base = send_base + size of packet(minheap.top())
-                //    delete packet with minheap.top() == ACK from table
-                //    update smallestReceivedACK from minheap 
-                while (_sendBase % Constants::MaxSequenceNumber == minACK.top()) {
-                    _sendBase += packetSizes[minACK.top()];
-                    packetSizes.erase(minACK.top());
-                    minACK.pop();
-                }
-
+            // *****************************
+            // Step 4
+            // while minheap.top() == send_base
+            //    send_base = send_base + size of packet(minheap.top())
+            //    delete packet with minheap.top() == ACK from table
+            //    update smallestReceivedACK from minheap 
+            while (_sendBase % Constants::MaxSequenceNumber == minACK.top()) {
+                _sendBase += packetSizes[minACK.top()];
+                packetSizes.erase(minACK.top());
+                minACK.pop();
             }
         }
         perror_then_failure:
