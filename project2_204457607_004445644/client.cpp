@@ -78,6 +78,7 @@ int main(int argc, char** argv)
             else
                 cout << "File not found. Exiting." << endl;
         }
+        cout << "Closing RDTP connection." << endl;
         // Need destructor to fire before close(sockfd)
         // Might as well be using rust with all this utilization of scoping rules
     }

@@ -66,21 +66,22 @@ namespace RDTP
 
             // *****************************
             // Step 2
-            // if nextseqnum < send_base + window_size
+            // while nextseqnum < send_base + window_size
             //     prepare new packet (size == min(max packet size, send_base + window_size - nextseqnum))
             //     send packet
             //     update nextseqnum += size
-            if (_nextSeqNum < _sendBase + Constants::WindowSize) {
+            bool breakOut = false;
+            while (_nextSeqNum < _sendBase + Constants::WindowSize) {
                 vector<char> data = GetDataForNextPacket(begin, end, (size_t) (_sendBase + Constants::WindowSize - _nextSeqNum));
 
-                if (data.size() == 0 && packetSizes.size() == 0) {
+                if (data.size() == 0) {
                     // no more stuff to send
-                    // no waiting on any other ACK
+                    breakOut = true;
                     break;
                 }
 
                 if (data.size() != 0) {
-                    uint16_t realPacketNum = _sendBase % Constants::MaxSequenceNumber;
+                    uint16_t realPacketNum = _nextSeqNum % Constants::MaxSequenceNumber;
                     Packet packet = Packet(PacketType::NONE, realPacketNum, Constants::WindowSize, data.data(), data.size());
 
                     // update data structures
@@ -102,13 +103,16 @@ namespace RDTP
                 }
             }
 
+            if (breakOut && packetSizes.size() == 0) // no more stuff to send & no waiting on any other ACK
+                break;
+
             // *****************************
             // Step 3
             // try to receive packet for RTO time (500ms)
             //     if send_base <= ACK <= send_base + window_size
             //         add to minheap
             //         delete packet(ACK#) from list
-            while (true) {
+            //while (true) {
                 len = recvfrom(_sockfd, buf, Constants::MaxPacketSize, 0, (struct sockaddr*)&_cli_addr, &_cli_len);
 
                 if (len > 0) {
@@ -135,11 +139,12 @@ namespace RDTP
                             packetTimestamps.erase(ackNum);
                         }
                     }
-                } else {
-                    // timeout
-                    break;
                 }
-            }
+                // else {
+                    // timeout
+                //    break;
+                //}
+            //}
 
             // *****************************
             // Step 4

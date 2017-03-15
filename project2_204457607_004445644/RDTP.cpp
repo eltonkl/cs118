@@ -482,19 +482,19 @@ namespace RDTP
 			if (len <= 0) // Response was not received in 500 ms, retry
 				continue;
 
-			Packet packet = Packet::FromRawData(buf, len);
-			_printer.PrintInformation(ApplicationType::Server, packet, false, true);
+			Packet packet2 = Packet::FromRawData(buf, len);
+			_printer.PrintInformation(ApplicationType::Server, packet2, false, true);
 
-			if (packet.GetPacketType() == PacketType::ACK)
+			if (packet2.GetPacketType() == PacketType::ACK)
 			{
-				if (packet.GetNumber() != _sendBase)
+				if (packet2.GetNumber() != _sendBase % Constants::MaxSequenceNumber)
 					continue;
 				else
 					break;
 			}
-			else if (packet.GetPacketType() == PacketType::FIN)
+			else if (packet2.GetPacketType() == PacketType::FIN)
 			{
-				_rcvBase = packet.GetNumber();
+				_rcvBase = packet2.GetNumber();
 				receiveFIN = false;
 				finReceived = true;
 				break;
