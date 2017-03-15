@@ -88,15 +88,24 @@ namespace RDTP
 		return *this;
     }
 
+	uint64_t roundDown(uint64_t num)
+	{
+		int remainder = num % Constants::MaxSequenceNumber;
+		if (remainder == 0)
+			return num;
+
+		return num - remainder;
+	}
+
     // Read data
     void RDTPConnection::Read(std::basic_ostream<char>& os, size_t count)
     {
 		ostream_iterator<char> osi(os);
 		size_t read = 0;
 
-		while (!_receivedPackets.empty() && _rcvBase % Constants::MaxSequenceNumber == _receivedPackets.front().GetNumber())
+		while (!_receivedPackets.empty() && _rcvBase == _receivedPackets.front().second)
 		{
-			auto data = _receivedPackets.front().GetData();
+			auto data = _receivedPackets.front().first.GetData();
 			size_t bytes = min((size_t)distance(data.begin() + _readOffset, data.end()), count - read);
 			copy(data.begin() + _readOffset, data.begin() + _readOffset + bytes, osi);
 			read += bytes;
@@ -134,27 +143,27 @@ namespace RDTP
 				_printer.PrintInformation(_type, packet, false, true);
 			}
 			
-			bool rotatedFirst = false;
-			bool rotatedSecond = false;
-			uint64_t realRcvBase = _rcvBase % Constants::MaxSequenceNumber;
-			cout << "Read: " << read << endl;
-
 			if (packet.GetPacketType() != PacketType::NONE)
 				continue;
-			if ((int64_t)(_rcvBase % Constants::MaxSequenceNumber) - Constants::WindowSize < 0)
-				rotatedFirst = true;
-			if ((realRcvBase + Constants::WindowSize) > Constants::MaxSequenceNumber)
-				rotatedSecond = true;
 
-			if ((rotatedFirst && ((((_rcvBase - Constants::WindowSize) % Constants::MaxSequenceNumber <= packet.GetNumber() && packet.GetNumber() <= Constants::MaxSequenceNumber)) || (packet.GetNumber() <= (_rcvBase % Constants::MaxSequenceNumber) - 1)))
-				|| (!rotatedFirst && (_rcvBase - Constants::WindowSize) <= packet.GetNumber() && packet.GetNumber() <= _rcvBase - 1))
+			uint64_t actualSeqNumber;
+			if ((_rcvBase % Constants::MaxSequenceNumber) + Constants::WindowSize > Constants::MaxSequenceNumber)
+			{
+				if (packet.GetNumber() < (_rcvBase % Constants::MaxSequenceNumber))
+					actualSeqNumber = packet.GetNumber() + _rcvBase + (Constants::MaxSequenceNumber - (_rcvBase % Constants::MaxSequenceNumber));
+				else
+					actualSeqNumber = packet.GetNumber() + roundDown(_rcvBase);
+			}
+			else
+				actualSeqNumber = packet.GetNumber() + roundDown(_rcvBase);
+
+			if (actualSeqNumber <= _rcvBase - 1 && _rcvBase <= actualSeqNumber + Constants::WindowSize)
 			{
 				Packet ack = Packet(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
 				_printer.PrintInformation(_type, ack, false, false);
 				sendto(_sockfd, ack.GetRawData().data(), ack.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
 			}
-			else if ((rotatedSecond && ((_rcvBase <= packet.GetNumber() && packet.GetNumber() <= Constants::MaxSequenceNumber) || packet.GetNumber() <= (_rcvBase + Constants::WindowSize - 1) % Constants::MaxSequenceNumber))
-			     || (!rotatedSecond && _rcvBase <= packet.GetNumber() && packet.GetNumber() <= _rcvBase + Constants::WindowSize - 1))
+			else if (_rcvBase <= actualSeqNumber && actualSeqNumber <= _rcvBase + Constants::WindowSize - 1)
 			{
 				Packet ack = Packet(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
 				_printer.PrintInformation(_type, ack, false, false);
@@ -162,15 +171,15 @@ namespace RDTP
 				auto it = _receivedPackets.begin();
 				while (it != _receivedPackets.end())
 				{
-					if (it->GetNumber() > packet.GetNumber())
+					if (it->second > actualSeqNumber)
 						break;
 					it++;
 				}
-				_receivedPackets.insert(it, packet);
+				_receivedPackets.emplace(it, packet, actualSeqNumber);
 
-				while (_rcvBase % Constants::MaxSequenceNumber == _receivedPackets.front().GetNumber())
+				while (_rcvBase == _receivedPackets.front().second)
 				{
-					auto data = _receivedPackets.front().GetData();
+					auto data = _receivedPackets.front().first.GetData();
 					size_t bytes = min((size_t)distance(data.begin(), data.end()), count - read);
 					copy(data.begin(), data.begin() + bytes, osi);
 					read += bytes;

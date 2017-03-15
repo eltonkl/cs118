@@ -82,7 +82,7 @@ namespace RDTP
         // ACK (aka the ACK dropped), this will not be
         // nullptr
         _Internals::Packet* _firstDataPacket;
-        std::list<_Internals::Packet> _receivedPackets;
+        std::list<std::pair<_Internals::Packet, uint64_t>> _receivedPackets;
         int _readOffset;
 
         template <typename Iterator>
