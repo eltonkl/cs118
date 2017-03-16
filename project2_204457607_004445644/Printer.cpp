@@ -1,4 +1,4 @@
-#define DEBUG
+
 
 #include "RDTP.h"
 #include "Printer.h"
@@ -54,23 +54,23 @@ namespace RDTP
             if (isReceive) {
                 if (type == ApplicationType::Server) {
                     // “Receiving packet” [ACK number]
-                    _os << "Receiving packet " << packet.GetAcknowledgeNumber() << endl;
+                    _os << "Receiving packet " << packet.GetNumber() << endl;
                 } else {
                     // Client
                     // “Receiving packet” [Sequence number]
-                    _os << "Receiving packet " << packet.GetSequenceNumber() << endl;
+                    _os << "Receiving packet " << packet.GetNumber() << endl;
                 }
             } else {
                 if (type == ApplicationType::Server) {
                     // “Sending packet” [Sequence number] [WND] (“Retransmission”) (“SYN”) (“FIN”)
-                    _os << "Sending packet " << packet.GetSequenceNumber();
+                    _os << "Sending packet " << packet.GetNumber();
                     _os << " " << packet.GetWindowSize();
                 } else {
                     // Client
                     // “Sending packet” [ACK number] (“Retransmission”) (”SYN”) (”FIN”)
                     _os << "Sending packet";
                     if (pt != PacketType::SYN)
-                        _os << " " << packet.GetAcknowledgeNumber();
+                        _os << " " << packet.GetNumber();
                 }
 
                 // common between Cleint/Server sending
