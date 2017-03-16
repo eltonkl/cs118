@@ -160,9 +160,8 @@ namespace RDTP
 
 			if (_rcvBase <= actualSeqNumber && actualSeqNumber <= _rcvBase + Constants::WindowSize - 1)
 			{
-				Packet ack = Packet(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
-				_printer.PrintInformation(_type, ack, false, false);
-				sendto(_sockfd, ack.GetRawData().data(), ack.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
+				bool retransmit = false;
+
 				auto it = _receivedPackets.begin();
 				while (it != _receivedPackets.end())
 				{
@@ -170,8 +169,19 @@ namespace RDTP
 						break;
 					it++;
 				}
-				if (it == _receivedPackets.end() || (it != _receivedPackets.end() && it->second != actualSeqNumber))
+				if (it == _receivedPackets.end())
 					_receivedPackets.emplace(it, packet, actualSeqNumber);
+				else if (it != _receivedPackets.end())
+				{
+					if (it->second != actualSeqNumber)
+						_receivedPackets.emplace(it, packet, actualSeqNumber);
+					else
+						retransmit = true;
+				}
+
+				Packet ack = Packet(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
+				_printer.PrintInformation(_type, ack, retransmit, false);
+				sendto(_sockfd, ack.GetRawData().data(), ack.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
 
 				while (_rcvBase == _receivedPackets.front().second)
 				{
@@ -195,7 +205,8 @@ namespace RDTP
 			else
 			{
 				Packet ack = Packet(PacketType::ACK, packet.GetNumber(), Constants::WindowSize, nullptr, 0);
-				_printer.PrintInformation(_type, ack, false, false);
+				bool retransmit = (actualSeqNumber < _rcvBase);
+				_printer.PrintInformation(_type, ack, retransmit, false);
 				sendto(_sockfd, ack.GetRawData().data(), ack.GetRawDataSize(), 0, (struct sockaddr*)&_cli_addr, _cli_len);
 			}
 		}
